@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SillaMurcia — Tu silla en los mejores desfiles</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root{--red:#C0392B;--gold:#D4AF37;--dark:#1a0a0a;--cream:#FFF8F0;}
+  *{box-sizing:border-box;}
+  body{font-family:'Inter',sans-serif;background:var(--cream);color:#1a1a1a;overflow-x:hidden;}
+  .font-display{font-family:'Playfair Display',serif;}
+  /* Scrollbar */
+  ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:#f1f1f1;}::-webkit-scrollbar-thumb{background:var(--red);border-radius:3px;}
+  /* Hero gradient */
+  .hero-bg{background:linear-gradient(135deg,#1a0505 0%,#5c0a0a 40%,#8B1A1A 70%,#C0392B 100%);}
+  /* Gold accent */
+  .gold-text{background:linear-gradient(135deg,#D4AF37,#F5D76E,#D4AF37);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  /* Card hover */
+  .event-card{transition:transform .3s,box-shadow .3s;}
+  .event-card:hover{transform:translateY(-8px);box-shadow:0 20px 60px rgba(192,57,43,.25);}
+  /* Seat styles */
+  .seat{cursor:pointer;transition:all .2s;fill:#e8e8e8;stroke:#ccc;stroke-width:1;}
+  .seat:hover{fill:#F5D76E;stroke:#D4AF37;filter:drop-shadow(0 0 8px #D4AF37);}
+  .seat.selected{fill:#D4AF37;stroke:#C0392B;filter:drop-shadow(0 0 12px #D4AF37);animation:pulse-gold .8s ease-in-out infinite;}
+  .seat.vip{fill:#fde68a;}
+  .seat.preferente{fill:#bfdbfe;}
+  .seat.general{fill:#d1fae5;}
+  .seat.occupied{fill:#6b7280;stroke:#4b5563;cursor:not-allowed;opacity:.5;}
+  .seat.occupied:hover{filter:none;}
+  @keyframes pulse-gold{0%,100%{filter:drop-shadow(0 0 8px #D4AF37);}50%{filter:drop-shadow(0 0 20px #F5D76E);}}
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem;}
+  .modal-box{background:#fff;border-radius:1.5rem;max-height:90vh;overflow-y:auto;width:100%;max-width:900px;position:relative;}
+  /* Cart badge */
+  .cart-badge{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+  /* Stripe card */
+  .card-field{background:#f8f8f8;border:2px solid #e5e7eb;border-radius:.75rem;padding:.875rem 1rem;font-size:1rem;transition:border-color .2s;width:100%;}
+  .card-field:focus{outline:none;border-color:var(--red);}
+  /* QR ticket */
+  .ticket-bg{background:linear-gradient(135deg,#1a0505,#5c0a0a);border-radius:1.5rem;overflow:hidden;position:relative;}
+  .ticket-perforation{position:absolute;left:0;right:0;display:flex;justify-content:space-between;padding:0 -12px;}
+  .perforation-dot{width:24px;height:24px;background:var(--cream);border-radius:50%;}
+  /* Zone legend */
+  .zone-vip{background:#fef3c7;border-left:4px solid #D4AF37;}
+  .zone-pref{background:#eff6ff;border-left:4px solid #3b82f6;}
+  .zone-gen{background:#f0fdf4;border-left:4px solid #22c55e;}
+  /* Nav */
+  .nav-glass{background:rgba(26,5,5,.92);backdrop-filter:blur(12px);border-bottom:1px solid rgba(212,175,55,.2);}
+  /* Floating cart */
+  .cart-float{position:fixed;bottom:2rem;right:2rem;z-index:40;}
+  /* Scroll snap */
+  .snap-x{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;}
+  .snap-start{scroll-snap-align:start;}
+  /* WhatsApp btn */
+  .wa-btn{background:linear-gradient(135deg,#25D366,#128C7E);}
+  /* Toast */
+  .toast{position:fixed;bottom:6rem;right:2rem;z-index:100;background:#1a1a1a;color:#fff;padding:.75rem 1.25rem;border-radius:.75rem;font-size:.875rem;transform:translateY(100px);opacity:0;transition:all .4s;pointer-events:none;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  /* Responsive seat map */
+  .seat-map-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  /* Animation */
+  @keyframes fadeIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+  .fade-in{animation:fadeIn .6s ease forwards;}
+  /* Section tabs */
+  .tab-btn.active{background:var(--red);color:#fff;}
+  /* Stars decoration */
+  .stars::before{content:'★ ★ ★ ★ ★';color:#D4AF37;font-size:.75rem;letter-spacing:4px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ NAV ═══════════════════════ -->
+<nav class="nav-glass fixed top-0 left-0 right-0 z-30 px-4 py-3">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full flex items-center justify-center" style="background:linear-gradient(135deg,#D4AF37,#C0392B)">
+        <span class="text-white font-bold text-sm">SM</span>
+      </div>
+      <span class="font-display text-white text-xl font-bold">Silla<span class="gold-text">Murcia</span></span>
+    </div>
+    <div class="hidden md:flex items-center gap-6 text-sm text-white/80">
+      <button onclick="scrollToSection('eventos')" class="hover:text-yellow-400 transition-colors">Eventos</button>
+      <button onclick="scrollToSection('mis-tickets')" class="hover:text-yellow-400 transition-colors">Mis Tickets</button>
+      <button onclick="scrollToSection('validar')" class="hover:text-yellow-400 transition-colors">Validar QR</button>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="openCart()" class="relative p-2 text-white hover:text-yellow-400 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span id="cart-badge" class="cart-badge hidden">0</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<section class="hero-bg min-h-screen flex items-center justify-center relative overflow-hidden pt-20">
+  <!-- decorative circles -->
+  <div class="absolute top-20 left-10 w-64 h-64 rounded-full opacity-10" style="background:radial-gradient(circle,#D4AF37,transparent)"></div>
+  <div class="absolute bottom-10 right-10 w-96 h-96 rounded-full opacity-10" style="background:radial-gradient(circle,#C0392B,transparent)"></div>
+  <!-- floral ornament -->
+  <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22><text y=%2245%22 font-size=%2240%22>⚜</text></svg>');background-size:60px 60px;"></div>
+
+  <div class="relative text-center px-4 max-w-4xl mx-auto">
+    <div class="stars mb-4 block"></div>
+    <h1 class="font-display text-5xl md:text-7xl font-black text-white mb-4 leading-tight">
+      Tu Silla en<br><span class="gold-text">los Mejores Desfiles</span><br>de Murcia
+    </h1>
+    <p class="text-white/70 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
+      Semana Santa, Entierro de la Sardina, Bando de la Huerta y más.<br>Reserva tu silla en el mejor sitio y disfruta sin esperas.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <button onclick="scrollToSection('eventos')" class="px-8 py-4 rounded-2xl font-bold text-lg text-dark transition-all hover:scale-105 hover:shadow-2xl" style="background:linear-gradient(135deg,#D4AF37,#F5D76E)">
+        Ver Eventos 🎉
+      </button>
+      <button onclick="scrollToSection('mis-tickets')" class="px-8 py-4 rounded-2xl font-bold text-lg text-white border-2 border-white/30 hover:border-yellow-400 transition-all hover:scale-105">
+        Mis Tickets 🎫
+      </button>
+    </div>
+    <!-- stats -->
+    <div class="mt-16 grid grid-cols-3 gap-6 max-w-lg mx-auto">
+      <div class="text-center"><div class="font-display text-3xl font-black gold-text">+2.400</div><div class="text-white/60 text-sm">Sillas vendidas</div></div>
+      <div class="text-center"><div class="font-display text-3xl font-black gold-text">12</div><div class="text-white/60 text-sm">Eventos activos</div></div>
+      <div class="text-center"><div class="font-display text-3xl font-black gold-text">4.9★</div><div class="text-white/60 text-sm">Valoración</div></div>
+    </div>
+  </div>
+  <!-- scroll indicator -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/40 animate-bounce text-xs flex flex-col items-center gap-1">
+    <span>Scroll</span>
+    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+</section>
+
+<!-- ═══════════════════════ EVENTOS ═══════════════════════ -->
+<section id="eventos" class="py-20 px-4">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+      <div class="stars mb-3 block"></div>
+      <h2 class="font-display text-4xl md:text-5xl font-black mb-4" style="color:var(--dark)">Eventos <span style="color:var(--red)">2026</span></h2>
+      <p class="text-gray-500 text-lg max-w-xl mx-auto">Selecciona un evento para ver el plano de sillas y reservar tu lugar ideal</p>
+    </div>
+    <div id="events-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ MIS TICKETS ═══════════════════════ -->
+<section id="mis-tickets" class="py-20 px-4" style="background:linear-gradient(135deg,#1a0505 0%,#2d0808 100%)">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+      <h2 class="font-display text-4xl font-black text-white mb-4">Mis <span class="gold-text">Tickets</span></h2>
+      <p class="text-white/60">Todos tus tickets comprados con código QR para acceso rápido</p>
+    </div>
+    <div id="my-tickets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div class="text-center py-16 text-white/30 col-span-full">
+        <svg class="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+        <p class="text-lg">Aún no tienes tickets comprados</p>
+        <button onclick="scrollToSection('eventos')" class="mt-4 px-6 py-2 rounded-xl text-sm font-semibold" style="background:var(--gold);color:#1a0505">Ver eventos</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ VALIDAR QR ═══════════════════════ -->
+<section id="validar" class="py-20 px-4 bg-gray-50">
+  <div class="max-w-md mx-auto text-center">
+    <div class="stars mb-3 block"></div>
+    <h2 class="font-display text-4xl font-black mb-4" style="color:var(--dark)">Validar <span style="color:var(--red)">QR</span></h2>
+    <p class="text-gray-500 mb-8">Para revisores de acceso: introduce el código del ticket</p>
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      <input id="qr-input" type="text" placeholder="Introduce el código del ticket (ej: SM-2026-001)" class="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-red-500 text-center font-mono text-lg mb-4" style="border-color:#e5e7eb"/>
+      <button onclick="validateQR()" class="w-full py-3 rounded-xl font-bold text-white text-lg transition-all hover:scale-105" style="background:var(--red)">Validar Entrada</button>
+      <div id="qr-result" class="mt-6 hidden"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="py-12 px-4 text-center" style="background:#0f0303">
+  <div class="font-display text-2xl text-white mb-2">Silla<span class="gold-text">Murcia</span></div>
+  <p class="text-white/40 text-sm">© 2026 SillaMurcia · Murcia, España · Hecho con ❤️ y mucha huerta</p>
+  <div class="mt-4 flex justify-center gap-6 text-xs text-white/30">
+    <span>Política de privacidad</span><span>·</span><span>Términos de uso</span><span>·</span><span>Contacto</span>
+  </div>
+</footer>
+
+<!-- ═══════════════════════ FLOATING CART ═══════════════════════ -->
+<div class="cart-float">
+  <button onclick="openCart()" id="cart-float-btn" class="relative w-14 h-14 rounded-full shadow-2xl text-white flex items-center justify-center hover:scale-110 transition-transform hidden" style="background:linear-gradient(135deg,var(--red),#8B1A1A)">
+    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+    <span id="cart-float-badge" class="cart-badge">0</span>
+  </button>
+</div>
+
+<!-- ═══════════════════════ EVENT DETAIL MODAL ═══════════════════════ -->
+<div id="event-modal" class="modal-overlay hidden" onclick="closeModal('event-modal')">
+  <div class="modal-box" onclick="e=>e.stopPropagation()" style="max-width:960px">
+    <div id="event-modal-content"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ CART MODAL ═══════════════════════ -->
+<div id="cart-modal" class="modal-overlay hidden" onclick="closeModal('cart-modal')">
+  <div class="modal-box p-8" onclick="e=>e.stopPropagation()" style="max-width:520px">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="font-display text-2xl font-black" style="color:var(--dark)">🛒 Tu Carrito</h2>
+      <button onclick="closeModal('cart-modal')" class="p-2 hover:bg-gray-100 rounded-xl"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="cart-items-list"></div>
+    <div id="cart-total-section" class="hidden mt-6 pt-6 border-t-2 border-dashed border-gray-200">
+      <div class="flex justify-between text-lg font-bold mb-6">
+        <span>Total</span>
+        <span id="cart-total-price" style="color:var(--red)"></span>
+      </div>
+      <button onclick="openCheckout()" class="w-full py-4 rounded-2xl font-bold text-white text-lg transition-all hover:scale-105 hover:shadow-xl" style="background:linear-gradient(135deg,var(--red),#8B1A1A)">
+        Proceder al Pago →
+      </button>
+    </div>
+    <div id="cart-empty" class="text-center py-12 text-gray-400">
+      <svg class="w-14 h-14 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      <p>Tu carrito está vacío</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ CHECKOUT MODAL ═══════════════════════ -->
+<div id="checkout-modal" class="modal-overlay hidden" onclick="closeModal('checkout-modal')">
+  <div class="modal-box p-8" onclick="e=>e.stopPropagation()" style="max-width:520px">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="font-display text-2xl font-black" style="color:var(--dark)">💳 Pago Seguro</h2>
+      <button onclick="closeModal('checkout-modal')" class="p-2 hover:bg-gray-100 rounded-xl"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <!-- Progress -->
+    <div class="flex items-center gap-2 mb-8 text-sm">
+      <div class="flex items-center gap-1"><div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:var(--red)">1</div><span class="font-medium">Datos</span></div>
+      <div class="flex-1 h-0.5 bg-gray-200"></div>
+      <div class="flex items-center gap-1"><div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-gray-200 text-gray-500" id="step2-dot">2</div><span class="text-gray-400" id="step2-label">Pago</span></div>
+      <div class="flex-1 h-0.5 bg-gray-200"></div>
+      <div class="flex items-center gap-1"><div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold bg-gray-200 text-gray-500" id="step3-dot">3</div><span class="text-gray-400">Ticket</span></div>
+    </div>
+    <form id="checkout-form" onsubmit="submitPayment(event)">
+      <!-- Step 1: personal data -->
+      <div id="form-step1">
+        <div class="space-y-4 mb-6">
+          <div>
+            <label class="block text-sm font-semibold mb-1 text-gray-700">Nombre completo</label>
+            <input id="f-name" required type="text" placeholder="Ej: Juan García Martínez" class="card-field" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1 text-gray-700">Teléfono (WhatsApp)</label>
+            <input id="f-phone" required type="tel" placeholder="+34 600 000 000" class="card-field" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1 text-gray-700">Email</label>
+            <input id="f-email" required type="email" placeholder="juan@ejemplo.com" class="card-field" />
+          </div>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-6 text-sm text-amber-800">
+          🔒 Tus datos están protegidos. Nunca compartiremos tu información.
+        </div>
+        <button type="button" onclick="goToStep2()" class="w-full py-4 rounded-2xl font-bold text-white text-lg hover:scale-105 transition-all" style="background:linear-gradient(135deg,var(--red),#8B1A1A)">
+          Continuar al Pago →
+        </button>
+      </div>
+      <!-- Step 2: payment -->
+      <div id="form-step2" class="hidden">
+        <div class="space-y-4 mb-6">
+          <div>
+            <label class="block text-sm font-semibold mb-1 text-gray-700">Número de tarjeta</label>
+            <input id="f-card" type="text" placeholder="4242 4242 4242 4242" maxlength="19" class="card-field font-mono" oninput="formatCard(this)" />
+            <p class="text-xs text-gray-400 mt-1">Usa 4242 4242 4242 4242 para test</p>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold mb-1 text-gray-700">Caducidad</label>
+              <input id="f-exp" type="text" placeholder="MM/AA" maxlength="5" class="card-field font-mono" oninput="formatExp(this)" />
+            </div>
+            <div>
+              <label class="block text-sm font-semibold mb-1 text-gray-700">CVV</label>
+              <input id="f-cvv" type="text" placeholder="123" maxlength="3" class="card-field font-mono" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1 text-gray-700">Nombre en la tarjeta</label>
+            <input id="f-cardname" type="text" placeholder="JUAN GARCIA" class="card-field uppercase" />
+          </div>
+        </div>
+        <!-- Order summary -->
+        <div class="bg-gray-50 rounded-xl p-4 mb-6">
+          <p class="text-sm font-semibold text-gray-700 mb-2">Resumen del pedido:</p>
+          <div id="checkout-summary" class="text-sm text-gray-600 space-y-1"></div>
+          <div class="border-t border-gray-200 mt-3 pt-3 flex justify-between font-bold">
+            <span>Total a pagar</span>
+            <span id="checkout-total" style="color:var(--red)"></span>
+          </div>
+        </div>
+        <!-- Card logos -->
+        <div class="flex gap-3 mb-6 justify-center">
+          <div class="px-3 py-1 bg-blue-600 text-white text-xs font-bold rounded">VISA</div>
+          <div class="px-3 py-1 bg-red-600 text-white text-xs font-bold rounded">MC</div>
+          <div class="px-3 py-1 bg-blue-800 text-white text-xs font-bold rounded">AMEX</div>
+          <div class="flex items-center gap-1 text-xs text-gray-500"><svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>SSL Seguro</div>
+        </div>
+        <button type="submit" id="pay-btn" class="w-full py-4 rounded-2xl font-bold text-white text-lg hover:scale-105 transition-all" style="background:linear-gradient(135deg,#16a34a,#15803d)">
+          💳 Pagar Ahora
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════ TICKET MODAL ═══════════════════════ -->
+<div id="ticket-modal" class="modal-overlay hidden" onclick="e=>e.stopPropagation()">
+  <div class="modal-box" onclick="e=>e.stopPropagation()" style="max-width:480px">
+    <div id="ticket-modal-content" class="p-6"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ TOAST ═══════════════════════ -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════════════════
+const EVENTS = [
+  {
+    id: 'ss-martes',
+    name: 'Procesión del Martes Santo',
+    subtitle: 'Semana Santa Murcia 2026',
+    category: 'Semana Santa',
+    date: 'Martes 31 de Marzo, 2026',
+    time: '20:00h',
+    img: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=800&q=80',
+    description: 'Una de las procesiones más impresionantes de la Semana Santa murciana. Hermandades de larga tradición desfilan por el corazón de Murcia con pasos de gran valor artístico.',
+    color: '#8B1A1A',
+    icon: '⛪',
+    routes: [
+      { id: 'oficial', name: 'Recorrido Oficial — Gran Vía', seats: generateSeats('ss-martes','oficial',60,['VIP','Preferente','General']) },
+      { id: 'belluga', name: 'Tribuna Plaza Cardenal Belluga', seats: generateSeats('ss-martes','belluga',40,['VIP','VIP','Preferente']) },
+      { id: 'traperia', name: 'Calle Trapería', seats: generateSeats('ss-martes','traperia',50,['General','General','Preferente']) },
+    ]
+  },
+  {
+    id: 'ss-viernes',
+    name: 'Procesión del Viernes Santo',
+    subtitle: 'Semana Santa Murcia 2026',
+    category: 'Semana Santa',
+    date: 'Viernes 3 de Abril, 2026',
+    time: '21:00h',
+    img: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80',
+    description: 'La procesión más solemne y emotiva. El Cristo del Rescate y la Dolorosa recorren las calles en un silencio profundo y conmovedor que eriza la piel.',
+    color: '#2d0808',
+    icon: '✝️',
+    routes: [
+      { id: 'centro', name: 'Recorrido Centro Histórico', seats: generateSeats('ss-viernes','centro',55,['VIP','Preferente','General']) },
+      { id: 'catedral', name: 'Junto a la Catedral', seats: generateSeats('ss-viernes','catedral',35,['VIP','VIP','Preferente']) },
+    ]
+  },
+  {
+    id: 'sardina',
+    name: 'Entierro de la Sardina',
+    subtitle: 'Murcia 2026',
+    category: 'Fiestas de Primavera',
+    date: 'Sábado 11 de Abril, 2026',
+    time: '22:00h',
+    img: 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80',
+    description: '¡El fin de fiesta más delirante y colorido de España! Fuegos artificiales, carrozas de sátira política, dragones y la sardina más grande del mundo desfilan entre risas y confeti.',
+    color: '#1a4870',
+    icon: '🐟',
+    routes: [
+      { id: 'malecon', name: 'Paseo del Malecón', seats: generateSeats('sardina','malecon',70,['VIP','Preferente','General']) },
+      { id: 'granvia', name: 'Gran Vía Alfonso X', seats: generateSeats('sardina','granvia',60,['Preferente','General','General']) },
+      { id: 'floridablanca', name: 'Glorieta de España', seats: generateSeats('sardina','floridablanca',45,['VIP','VIP','Preferente']) },
+    ]
+  },
+  {
+    id: 'bando',
+    name: 'Bando de la Huerta',
+    subtitle: 'Gran Desfile — Murcia 2026',
+    category: 'Fiestas de Primavera',
+    date: 'Domingo 12 de Abril, 2026',
+    time: '11:00h',
+    img: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&q=80',
+    description: 'El desfile más alegre y vistoso de las Fiestas de Primavera. Huertanas con sus trajes tradicionales, carros engalanados, música y flores llenan la ciudad de color y alegría.',
+    color: '#1a5c1a',
+    icon: '🌸',
+    routes: [
+      { id: 'principal', name: 'Recorrido Principal', seats: generateSeats('bando','principal',80,['VIP','Preferente','General']) },
+      { id: 'isabel', name: 'Av. Reina Isabel', seats: generateSeats('bando','isabel',55,['General','General','Preferente']) },
+    ]
+  },
+  {
+    id: 'primavera',
+    name: 'Desfile de Primavera',
+    subtitle: 'Carrozas y Flores 2026',
+    category: 'Fiestas de Primavera',
+    date: 'Sábado 18 de Abril, 2026',
+    time: '19:00h',
+    img: 'https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=800&q=80',
+    description: 'Espectacular desfile de carrozas repletas de flores naturales murcianas. Reinas de las fiestas, bandas de música y miles de flores perfuman el ambiente.',
+    color: '#6b21a8',
+    icon: '🌺',
+    routes: [
+      { id: 'centrico', name: 'Circuito Céntrico', seats: generateSeats('primavera','centrico',65,['VIP','Preferente','General']) },
+      { id: 'merced', name: 'Zona La Merced', seats: generateSeats('primavera','merced',40,['Preferente','General','General']) },
+    ]
+  },
+  {
+    id: 'ss-domingo',
+    name: 'Domingo de Ramos',
+    subtitle: 'Semana Santa Murcia 2026',
+    category: 'Semana Santa',
+    date: 'Domingo 29 de Marzo, 2026',
+    time: '11:00h',
+    img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&q=80',
+    description: 'La apertura de la Semana Santa murciana. Niños y familias participan en una procesión festiva y emotiva que recorre el centro de Murcia al ritmo de bandas de música.',
+    color: '#78350f',
+    icon: '🌿',
+    routes: [
+      { id: 'obispo', name: 'Calle Obispo Frutos', seats: generateSeats('ss-domingo','obispo',50,['VIP','Preferente','General']) },
+      { id: 'santa-catalina', name: 'Plaza de Santa Catalina', seats: generateSeats('ss-domingo','santa-catalina',35,['VIP','Preferente','General']) },
+    ]
+  }
+];
+
+const PRICES = { VIP: 18, Preferente: 12, General: 7 };
+const ZONE_COLORS = { VIP: '#D4AF37', Preferente: '#3b82f6', General: '#22c55e' };
+
+// ════════════════════════════════════════════════════
+//  SEAT GENERATION
+// ════════════════════════════════════════════════════
+function generateSeats(eventId, routeId, count, zonePattern) {
+  const seats = [];
+  const occupiedPct = 0.3;
+  for (let i = 1; i <= count; i++) {
+    const zone = zonePattern[i % zonePattern.length];
+    seats.push({
+      id: `${eventId}-${routeId}-${i}`,
+      number: i,
+      zone,
+      price: PRICES[zone],
+      occupied: Math.random() < occupiedPct
+    });
+  }
+  return seats;
+}
+
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
+let state = {
+  cart: [],
+  selectedSeats: {},   // eventId+routeId -> [seatIds]
+  currentEvent: null,
+  currentRoute: null,
+  purchases: JSON.parse(localStorage.getItem('sm_purchases') || '[]')
+};
+
+// ════════════════════════════════════════════════════
+//  RENDER EVENTS GRID
+// ════════════════════════════════════════════════════
+function renderEventsGrid() {
+  const grid = document.getElementById('events-grid');
+  grid.innerHTML = EVENTS.map(ev => `
+    <div class="event-card bg-white rounded-3xl overflow-hidden shadow-lg cursor-pointer border border-gray-100" onclick="openEvent('${ev.id}')">
+      <div class="relative h-52 overflow-hidden">
+        <img src="${ev.img}" alt="${ev.name}" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80'"/>
+        <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,.6),transparent)"></div>
+        <div class="absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-bold text-white" style="background:${ev.color}">${ev.category}</div>
+        <div class="absolute bottom-3 left-3 text-3xl">${ev.icon}</div>
+      </div>
+      <div class="p-5">
+        <h3 class="font-display text-xl font-black mb-1 leading-tight" style="color:var(--dark)">${ev.name}</h3>
+        <p class="text-sm text-gray-500 mb-3">${ev.subtitle}</p>
+        <div class="flex items-center justify-between text-sm">
+          <div class="flex items-center gap-1 text-gray-600">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            ${ev.date.split(',')[0]}
+          </div>
+          <div class="flex items-center gap-1 font-semibold" style="color:var(--red)">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            ${ev.time}
+          </div>
+        </div>
+        <div class="mt-3 flex items-center justify-between">
+          <div class="text-xs text-gray-400">Desde <span class="text-lg font-black" style="color:var(--red)">7€</span></div>
+          <div class="px-4 py-2 rounded-xl text-xs font-bold text-white" style="background:linear-gradient(135deg,${ev.color},${ev.color}cc)">Ver sillas →</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════════
+//  OPEN EVENT MODAL
+// ════════════════════════════════════════════════════
+function openEvent(eventId) {
+  const ev = EVENTS.find(e => e.id === eventId);
+  if (!ev) return;
+  state.currentEvent = ev;
+  state.currentRoute = ev.routes[0];
+
+  const modal = document.getElementById('event-modal');
+  renderEventModal(ev, ev.routes[0]);
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderEventModal(ev, route) {
+  const content = document.getElementById('event-modal-content');
+  content.innerHTML = `
+    <!-- Hero image -->
+    <div class="relative h-64 overflow-hidden rounded-t-3xl">
+      <img src="${ev.img}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=800&q=80'"/>
+      <div class="absolute inset-0" style="background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 50%)"></div>
+      <button onclick="closeModal('event-modal')" class="absolute top-4 right-4 w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center text-white hover:bg-white/40 transition">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <div class="absolute bottom-4 left-6 text-white">
+        <div class="text-sm opacity-80 mb-1">${ev.category} · ${ev.date} · ${ev.time}</div>
+        <h2 class="font-display text-3xl font-black">${ev.name}</h2>
+      </div>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-600 mb-6">${ev.description}</p>
+      <!-- Route selector -->
+      <div class="mb-6">
+        <label class="block text-sm font-bold text-gray-700 mb-2">Selecciona el recorrido:</label>
+        <div class="flex flex-wrap gap-2">
+          ${ev.routes.map(r => `
+            <button onclick="selectRoute('${ev.id}','${r.id}')" id="route-btn-${r.id}"
+              class="px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${r.id === route.id ? 'text-white border-transparent' : 'border-gray-200 text-gray-600 hover:border-red-300'}"
+              style="${r.id === route.id ? 'background:var(--red);border-color:var(--red)' : ''}">
+              ${r.name}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <!-- Zone legend -->
+      <div class="flex flex-wrap gap-3 mb-4">
+        ${Object.entries(PRICES).map(([zone, price]) => `
+          <div class="zone-${zone.toLowerCase()} px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700">
+            ${zone} — ${price}€/silla
+          </div>
+        `).join('')}
+        <div class="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-400 bg-gray-100">⬛ Ocupada</div>
+      </div>
+      <!-- Seat map -->
+      <div class="seat-map-wrap rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 mb-6">
+        <div class="text-xs text-gray-400 mb-2 text-center">📍 ${route.name} — Haz clic en una silla para seleccionarla</div>
+        ${renderSeatMap(ev, route)}
+      </div>
+      <!-- Selected seats info -->
+      <div id="selected-info" class="mb-4"></div>
+      <!-- Add to cart -->
+      <button onclick="addToCart('${ev.id}','${route.id}')" id="add-cart-btn"
+        class="w-full py-4 rounded-2xl font-bold text-white text-lg transition-all hover:scale-105 hidden"
+        style="background:linear-gradient(135deg,var(--red),#8B1A1A)">
+        🛒 Añadir al Carrito
+      </button>
+    </div>
+  `;
+}
+
+function renderSeatMap(ev, route) {
+  const cols = 10;
+  const seats = route.seats;
+  const rows = Math.ceil(seats.length / cols);
+  const svgW = cols * 42 + 20;
+  const svgH = rows * 42 + 60;
+  const selectedKey = `${ev.id}-${route.id}`;
+  const selected = state.selectedSeats[selectedKey] || [];
+
+  let svgContent = `<svg viewBox="0 0 ${svgW} ${svgH}" class="w-full" style="min-width:${Math.min(svgW,400)}px">
+    <!-- Street label -->
+    <rect x="0" y="0" width="${svgW}" height="28" rx="0" fill="#2d2d2d"/>
+    <text x="${svgW/2}" y="18" text-anchor="middle" fill="#D4AF37" font-size="11" font-family="Inter,sans-serif" font-weight="600">🏠 ACERA — ${route.name.toUpperCase()}</text>
+    <!-- Lane -->
+    <rect x="0" y="${svgH-28}" width="${svgW}" height="28" rx="0" fill="#6b7280" opacity=".3"/>
+    <text x="${svgW/2}" y="${svgH-10}" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Inter,sans-serif">🚶 DESFILE →</text>
+  `;
+
+  seats.forEach((seat, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = col * 42 + 10;
+    const y = row * 42 + 36;
+    const isSelected = selected.includes(seat.id);
+    let fill = seat.occupied ? '#9ca3af' : (isSelected ? '#D4AF37' : (seat.zone === 'VIP' ? '#fef3c7' : seat.zone === 'Preferente' ? '#dbeafe' : '#d1fae5'));
+    let stroke = seat.occupied ? '#6b7280' : (isSelected ? '#C0392B' : (seat.zone === 'VIP' ? '#D4AF37' : seat.zone === 'Preferente' ? '#3b82f6' : '#22c55e'));
+    let cursor = seat.occupied ? 'not-allowed' : 'pointer';
+    let glow = isSelected ? `filter="url(#glow)"` : '';
+
+    svgContent += `
+      <g onclick="${seat.occupied ? '' : `toggleSeat('${ev.id}','${route.id}','${seat.id}')`}" style="cursor:${cursor}">
+        <rect x="${x}" y="${y}" width="32" height="28" rx="5"
+          fill="${fill}" stroke="${stroke}" stroke-width="${isSelected ? 2.5 : 1.5}"
+          class="seat-rect" id="seat-rect-${seat.id}"
+          opacity="${seat.occupied ? 0.5 : 1}"
+          ${isSelected ? 'style="filter:drop-shadow(0 0 6px #D4AF37)"' : ''}/>
+        <text x="${x+16}" y="${y+18}" text-anchor="middle" font-size="9" fill="${seat.occupied ? '#9ca3af' : '#374151'}" font-family="Inter,sans-serif" font-weight="600">${seat.number}</text>
+      </g>
+    `;
+  });
+
+  svgContent += `</svg>`;
+  return svgContent;
+}
+
+function selectRoute(eventId, routeId) {
+  const ev = EVENTS.find(e => e.id === eventId);
+  const route = ev.routes.find(r => r.id === routeId);
+  state.currentEvent = ev;
+  state.currentRoute = route;
+  renderEventModal(ev, route);
+}
+
+function toggleSeat(eventId, routeId, seatId) {
+  const key = `${eventId}-${routeId}`;
+  if (!state.selectedSeats[key]) state.selectedSeats[key] = [];
+  const arr = state.selectedSeats[key];
+  const idx = arr.indexOf(seatId);
+  if (idx >= 0) {
+    arr.splice(idx, 1);
+  } else {
+    if (arr.length >= 4) { showToast('Máximo 4 sillas por compra'); return; }
+    arr.push(seatId);
+  }
+  const ev = EVENTS.find(e => e.id === eventId);
+  const route = ev.routes.find(r => r.id === routeId);
+  // Re-render map only
+  const wrap = document.querySelector('.seat-map-wrap');
+  if (wrap) {
+    const inner = wrap.querySelector('div');
+    if (inner) inner.nextElementSibling && (inner.nextElementSibling.outerHTML = renderSeatMap(ev, route));
+    wrap.innerHTML = `<div class="text-xs text-gray-400 mb-2 text-center">📍 ${route.name} — Haz clic en una silla para seleccionarla</div>${renderSeatMap(ev, route)}`;
+  }
+  updateSelectedInfo(ev, route);
+}
+
+function updateSelectedInfo(ev, route) {
+  const key = `${ev.id}-${route.id}`;
+  const selected = state.selectedSeats[key] || [];
+  const info = document.getElementById('selected-info');
+  const btn = document.getElementById('add-cart-btn');
+  if (!info || !btn) return;
+
+  if (selected.length === 0) {
+    info.innerHTML = '';
+    btn.classList.add('hidden');
+    return;
+  }
+
+  const seats = route.seats.filter(s => selected.includes(s.id));
+  const total = seats.reduce((s, seat) => s + seat.price, 0);
+  const byZone = {};
+  seats.forEach(s => { byZone[s.zone] = (byZone[s.zone] || 0) + 1; });
+
+  info.innerHTML = `
+    <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 fade-in">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="font-bold text-sm mb-1">Sillas seleccionadas (${selected.length}/4):</p>
+          ${seats.map(s => `<span class="inline-block mr-1 mb-1 px-2 py-0.5 rounded text-xs font-mono font-bold" style="background:${ZONE_COLORS[s.zone]}22;border:1px solid ${ZONE_COLORS[s.zone]};color:${ZONE_COLORS[s.zone]}">#${s.number} ${s.zone}</span>`).join('')}
+        </div>
+        <div class="text-right">
+          <div class="text-2xl font-black" style="color:var(--red)">${total}€</div>
+          <div class="text-xs text-gray-500">total</div>
+        </div>
+      </div>
+    </div>
+  `;
+  btn.classList.remove('hidden');
+  btn.textContent = `🛒 Añadir al Carrito (${total}€)`;
+}
+
+// ════════════════════════════════════════════════════
+//  CART
+// ════════════════════════════════════════════════════
+function addToCart(eventId, routeId) {
+  const ev = EVENTS.find(e => e.id === eventId);
+  const route = ev.routes.find(r => r.id === routeId);
+  const key = `${eventId}-${routeId}`;
+  const selected = (state.selectedSeats[key] || []);
+  if (selected.length === 0) return;
+
+  const seats = route.seats.filter(s => selected.includes(s.id));
+  seats.forEach(seat => {
+    const existing = state.cart.find(c => c.seatId === seat.id);
+    if (!existing) {
+      state.cart.push({
+        seatId: seat.id,
+        seatNumber: seat.number,
+        zone: seat.zone,
+        price: seat.price,
+        eventId: ev.id,
+        eventName: ev.name,
+        routeId: route.id,
+        routeName: route.name,
+        date: ev.date,
+        time: ev.time,
+        icon: ev.icon
+      });
+    }
+  });
+
+  // Mark seats as occupied visually
+  state.selectedSeats[key] = [];
+  updateCartBadge();
+  closeModal('event-modal');
+  showToast(`✓ ${seats.length} silla(s) añadida(s) al carrito`);
+  document.getElementById('cart-float-btn').classList.remove('hidden');
+}
+
+function updateCartBadge() {
+  const n = state.cart.length;
+  ['cart-badge','cart-float-badge'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = n; el.classList.toggle('hidden', n === 0); }
+  });
+  if (n === 0) document.getElementById('cart-float-btn').classList.add('hidden');
+}
+
+function openCart() {
+  renderCartModal();
+  document.getElementById('cart-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderCartModal() {
+  const list = document.getElementById('cart-items-list');
+  const empty = document.getElementById('cart-empty');
+  const totalSec = document.getElementById('cart-total-section');
+
+  if (state.cart.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    totalSec.classList.add('hidden');
+    return;
+  }
+
+  empty.classList.add('hidden');
+  totalSec.classList.remove('hidden');
+
+  list.innerHTML = state.cart.map((item, i) => `
+    <div class="flex items-start gap-3 py-3 border-b border-dashed border-gray-100 fade-in">
+      <div class="text-2xl">${item.icon}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-sm leading-tight">${item.eventName}</p>
+        <p class="text-xs text-gray-500">${item.routeName}</p>
+        <p class="text-xs text-gray-400">${item.date} · ${item.time}</p>
+        <div class="mt-1">
+          <span class="inline-block px-2 py-0.5 rounded text-xs font-bold" style="background:${ZONE_COLORS[item.zone]}22;border:1px solid ${ZONE_COLORS[item.zone]};color:${ZONE_COLORS[item.zone]}">
+            Silla #${item.seatNumber} — ${item.zone}
+          </span>
+        </div>
+      </div>
+      <div class="flex flex-col items-end gap-2">
+        <span class="font-black text-lg" style="color:var(--red)">${item.price}€</span>
+        <button onclick="removeFromCart(${i})" class="text-gray-300 hover:text-red-500 transition-colors text-xs">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  const total = state.cart.reduce((s, i) => s + i.price, 0);
+  document.getElementById('cart-total-price').textContent = `${total}€`;
+}
+
+function removeFromCart(idx) {
+  state.cart.splice(idx, 1);
+  updateCartBadge();
+  renderCartModal();
+}
+
+// ════════════════════════════════════════════════════
+//  CHECKOUT
+// ════════════════════════════════════════════════════
+function openCheckout() {
+  closeModal('cart-modal');
+  // Fill summary
+  const summary = document.getElementById('checkout-summary');
+  if (summary) {
+    summary.innerHTML = state.cart.map(i => `
+      <div class="flex justify-between"><span>${i.icon} Silla #${i.seatNumber} — ${i.eventName.substring(0,25)}</span><span class="font-semibold">${i.price}€</span></div>
+    `).join('');
+  }
+  const total = state.cart.reduce((s, i) => s + i.price, 0);
+  const totalEl = document.getElementById('checkout-total');
+  if (totalEl) totalEl.textContent = `${total}€`;
+
+  document.getElementById('checkout-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  document.getElementById('form-step1').classList.remove('hidden');
+  document.getElementById('form-step2').classList.add('hidden');
+}
+
+function goToStep2() {
+  const name = document.getElementById('f-name').value.trim();
+  const phone = document.getElementById('f-phone').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  if (!name || !phone || !email) { showToast('Completa todos los campos'); return; }
+
+  document.getElementById('form-step1').classList.add('hidden');
+  document.getElementById('form-step2').classList.remove('hidden');
+  document.getElementById('step2-dot').className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white';
+  document.getElementById('step2-dot').style.background = 'var(--red)';
+  document.getElementById('step2-label').className = 'font-medium';
+}
+
+function formatCard(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,16);
+  el.value = v.match(/.{1,4}/g)?.join(' ') || v;
+}
+
+function formatExp(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,4);
+  if (v.length >= 2) v = v.substring(0,2) + '/' + v.substring(2);
+  el.value = v;
+}
+
+function submitPayment(e) {
+  e.preventDefault();
+  const btn = document.getElementById('pay-btn');
+  btn.textContent = '⏳ Procesando pago...';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    // Simulate successful payment
+    const purchaseId = 'SM-2026-' + String(Date.now()).slice(-6);
+    const buyerName = document.getElementById('f-name').value.trim();
+    const buyerPhone = document.getElementById('f-phone').value.trim();
+    const buyerEmail = document.getElementById('f-email').value.trim();
+
+    const purchase = {
+      id: purchaseId,
+      date: new Date().toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}),
+      buyer: { name: buyerName, phone: buyerPhone, email: buyerEmail },
+      items: [...state.cart],
+      total: state.cart.reduce((s, i) => s + i.price, 0),
+      used: false
+    };
+
+    state.purchases.push(purchase);
+    localStorage.setItem('sm_purchases', JSON.stringify(state.purchases));
+    state.cart = [];
+    updateCartBadge();
+
+    closeModal('checkout-modal');
+    showTicketModal(purchase);
+    fireConfetti();
+    renderMyTickets();
+
+    btn.textContent = '💳 Pagar Ahora';
+    btn.disabled = false;
+  }, 2200);
+}
+
+// ════════════════════════════════════════════════════
+//  TICKET
+// ════════════════════════════════════════════════════
+function showTicketModal(purchase) {
+  const modal = document.getElementById('ticket-modal');
+  const content = document.getElementById('ticket-modal-content');
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  const itemsText = purchase.items.map(i => `Silla #${i.seatNumber} (${i.zone}) — ${i.eventName}`).join('\n');
+  const waText = encodeURIComponent(
+    `🎫 *Tu ticket SillaMurcia*\n\n` +
+    `📌 *Código:* ${purchase.id}\n` +
+    `👤 *Comprador:* ${purchase.buyer.name}\n` +
+    `📅 *Fecha compra:* ${purchase.date}\n\n` +
+    `🎭 *Entradas:*\n${itemsText}\n\n` +
+    `💶 *Total pagado:* ${purchase.total}€\n\n` +
+    `Muestra el QR al revisor de acceso. ¡Gracias por confiar en SillaMurcia! 🌸`
+  );
+
+  const qrData = `SILLAMURCIA|${purchase.id}|${purchase.buyer.name}|${purchase.total}`;
+
+  content.innerHTML = `
+    <!-- Success header -->
+    <div class="text-center py-6 px-4" style="background:linear-gradient(135deg,#16a34a,#15803d);border-radius:1.5rem 1.5rem 0 0">
+      <div class="text-5xl mb-2">🎉</div>
+      <h2 class="font-display text-2xl font-black text-white">¡Pago Completado!</h2>
+      <p class="text-green-200 text-sm">Tu reserva ha sido confirmada</p>
+    </div>
+    <!-- Ticket body -->
+    <div class="p-6">
+      <!-- Ticket card -->
+      <div class="ticket-bg p-6 text-white mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="font-display text-xl font-black gold-text">SillaMurcia</div>
+            <div class="text-white/60 text-xs">Ticket Oficial de Acceso</div>
+          </div>
+          <div class="text-right">
+            <div class="font-mono text-sm font-bold text-yellow-400">${purchase.id}</div>
+            <div class="text-xs text-white/50">${purchase.date}</div>
+          </div>
+        </div>
+        <!-- Items -->
+        <div class="space-y-2 mb-4">
+          ${purchase.items.map(item => `
+            <div class="flex justify-between items-center bg-white/10 rounded-xl px-3 py-2">
+              <div>
+                <p class="font-bold text-sm">${item.icon} ${item.eventName}</p>
+                <p class="text-xs text-white/60">${item.routeName} · ${item.date}</p>
+                <p class="text-xs text-white/60">${item.time}</p>
+              </div>
+              <div class="text-right">
+                <div class="text-yellow-400 font-mono font-black">#${item.seatNumber}</div>
+                <div class="text-xs text-white/60">${item.zone}</div>
+                <div class="text-xs text-yellow-400">${item.price}€</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <!-- Separator -->
+        <div class="flex items-center gap-2 my-4">
+          <div class="w-3 h-3 rounded-full bg-gray-800 -ml-6"></div>
+          <div class="flex-1 border-t-2 border-dashed border-white/20"></div>
+          <div class="w-3 h-3 rounded-full bg-gray-800 -mr-6"></div>
+        </div>
+        <!-- Buyer -->
+        <div class="flex justify-between items-center">
+          <div class="text-sm">
+            <div class="font-bold">${purchase.buyer.name}</div>
+            <div class="text-white/60 text-xs">${purchase.buyer.email}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-yellow-400 font-black text-xl">${purchase.total}€</div>
+            <div class="text-xs text-white/60">Total pagado</div>
+          </div>
+        </div>
+      </div>
+      <!-- QR Code -->
+      <div class="bg-white rounded-2xl p-6 text-center border-2 border-gray-100 mb-4">
+        <p class="text-xs text-gray-400 mb-3 font-semibold uppercase tracking-wider">Código QR de Acceso</p>
+        <div id="qr-display-${purchase.id}" class="flex justify-center mb-3"></div>
+        <p class="font-mono text-sm font-bold text-gray-700">${purchase.id}</p>
+        <p class="text-xs text-gray-400 mt-1">Muestra este código al revisor</p>
+      </div>
+      <!-- Action buttons -->
+      <div class="space-y-3">
+        <a href="https://wa.me/?text=${waText}" target="_blank"
+          class="wa-btn w-full flex items-center justify-center gap-3 py-4 rounded-2xl font-bold text-white text-base hover:scale-105 transition-all">
+          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.555 4.122 1.528 5.855L0 24l6.335-1.652A11.954 11.954 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.007-1.373l-.36-.214-3.73.977.994-3.64-.235-.374A9.818 9.818 0 0112 2.182c5.424 0 9.818 4.394 9.818 9.818S17.424 21.818 12 21.818z"/></svg>
+          Enviar ticket por WhatsApp
+        </a>
+        <button onclick="downloadTicket('${purchase.id}')"
+          class="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-gray-700 border-2 border-gray-200 hover:border-gray-400 transition-all text-sm">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Descargar Ticket (PNG)
+        </button>
+        <button onclick="closeModal('ticket-modal')"
+          class="w-full py-3 rounded-2xl font-semibold text-gray-400 hover:text-gray-600 transition-all text-sm">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Generate QR after DOM ready
+  setTimeout(() => {
+    const qrEl = document.getElementById(`qr-display-${purchase.id}`);
+    if (qrEl) {
+      new QRCode(qrEl, {
+        text: qrData,
+        width: 160,
+        height: 160,
+        colorDark: '#1a0505',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+  }, 100);
+}
+
+function downloadTicket(purchaseId) {
+  const qrEl = document.getElementById(`qr-display-${purchaseId}`);
+  if (!qrEl) return;
+  const canvas = qrEl.querySelector('canvas');
+  if (!canvas) { showToast('QR no listo aún'); return; }
+  const link = document.createElement('a');
+  link.download = `ticket-${purchaseId}.png`;
+  link.href = canvas.toDataURL();
+  link.click();
+  showToast('✓ Ticket descargado');
+}
+
+// ════════════════════════════════════════════════════
+//  MY TICKETS
+// ════════════════════════════════════════════════════
+function renderMyTickets() {
+  const grid = document.getElementById('my-tickets-grid');
+  if (!grid) return;
+
+  if (state.purchases.length === 0) {
+    grid.innerHTML = `
+      <div class="text-center py-16 text-white/30 col-span-full">
+        <svg class="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+        <p class="text-lg">Aún no tienes tickets comprados</p>
+        <button onclick="scrollToSection('eventos')" class="mt-4 px-6 py-2 rounded-xl text-sm font-semibold" style="background:var(--gold);color:#1a0505">Ver eventos</button>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = state.purchases.map((p, pi) => `
+    <div class="bg-white/10 backdrop-blur rounded-2xl p-5 border border-white/20 fade-in">
+      <div class="flex justify-between items-start mb-3">
+        <div>
+          <div class="font-mono text-xs text-yellow-400 mb-1">${p.id}</div>
+          <div class="font-bold text-white text-sm">${p.buyer.name}</div>
+          <div class="text-white/50 text-xs">${p.date}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-yellow-400 font-black text-xl">${p.total}€</div>
+          <div class="text-xs ${p.used ? 'text-red-400' : 'text-green-400'} font-semibold">${p.used ? '⛔ Usado' : '✓ Válido'}</div>
+        </div>
+      </div>
+      <!-- Items summary -->
+      <div class="space-y-1 mb-4">
+        ${p.items.map(i => `<div class="text-xs text-white/70">${i.icon} ${i.eventName} — Silla #${i.seatNumber} (${i.zone})</div>`).join('')}
+      </div>
+      <!-- Mini QR -->
+      <div class="bg-white rounded-xl p-3 mb-3">
+        <div id="mini-qr-${p.id}" class="flex justify-center"></div>
+      </div>
+      <button onclick="viewTicket(${pi})" class="w-full py-2 rounded-xl text-xs font-bold text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/10 transition">
+        Ver ticket completo
+      </button>
+    </div>
+  `).join('');
+
+  // Render mini QRs
+  setTimeout(() => {
+    state.purchases.forEach(p => {
+      const el = document.getElementById(`mini-qr-${p.id}`);
+      if (el && !el.hasChildNodes()) {
+        new QRCode(el, {
+          text: `SILLAMURCIA|${p.id}|${p.buyer.name}|${p.total}`,
+          width: 100,
+          height: 100,
+          colorDark: '#1a0505',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+    });
+  }, 100);
+}
+
+function viewTicket(idx) {
+  showTicketModal(state.purchases[idx]);
+}
+
+// ════════════════════════════════════════════════════
+//  QR VALIDATOR
+// ════════════════════════════════════════════════════
+function validateQR() {
+  const code = document.getElementById('qr-input').value.trim().toUpperCase();
+  const result = document.getElementById('qr-result');
+  result.classList.remove('hidden');
+
+  const purchase = state.purchases.find(p => p.id === code);
+  if (!purchase) {
+    result.innerHTML = `
+      <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 text-center">
+        <div class="text-5xl mb-2">❌</div>
+        <h3 class="font-bold text-red-700 text-lg">Ticket NO Encontrado</h3>
+        <p class="text-red-500 text-sm mt-1">El código <span class="font-mono font-bold">${code}</span> no existe en el sistema.</p>
+      </div>`;
+    return;
+  }
+
+  if (purchase.used) {
+    result.innerHTML = `
+      <div class="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 text-center">
+        <div class="text-5xl mb-2">⚠️</div>
+        <h3 class="font-bold text-orange-700 text-lg">Ticket YA USADO</h3>
+        <p class="text-orange-500 text-sm mt-1">Este ticket ya fue validado anteriormente.</p>
+        <p class="text-orange-400 text-xs mt-2">${purchase.buyer.name} · ${purchase.date}</p>
+      </div>`;
+    return;
+  }
+
+  // Mark as used
+  purchase.used = true;
+  localStorage.setItem('sm_purchases', JSON.stringify(state.purchases));
+  renderMyTickets();
+
+  result.innerHTML = `
+    <div class="bg-green-50 border-2 border-green-300 rounded-2xl p-6 text-center">
+      <div class="text-5xl mb-2">✅</div>
+      <h3 class="font-bold text-green-700 text-xl">ACCESO VÁLIDO</h3>
+      <p class="text-green-600 text-sm mt-1">Ticket verificado correctamente.</p>
+      <div class="mt-4 text-left bg-white rounded-xl p-4 space-y-1 text-sm">
+        <div class="flex justify-between"><span class="text-gray-500">Titular:</span><span class="font-bold">${purchase.buyer.name}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Código:</span><span class="font-mono font-bold text-green-600">${purchase.id}</span></div>
+        ${purchase.items.map(i => `<div class="flex justify-between"><span class="text-gray-500">${i.eventName.substring(0,20)}...</span><span class="font-bold">Silla #${i.seatNumber} ${i.zone}</span></div>`).join('')}
+        <div class="flex justify-between"><span class="text-gray-500">Total:</span><span class="font-bold text-green-600">${purchase.total}€</span></div>
+      </div>
+      <p class="mt-3 text-xs text-green-500">✓ Ticket marcado como usado</p>
+    </div>`;
+}
+
+// ════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function fireConfetti() {
+  const colors = ['#C0392B','#D4AF37','#ffffff','#1a5c1a'];
+  confetti({particleCount:120,spread:80,origin:{y:.6},colors});
+  setTimeout(() => confetti({particleCount:60,spread:120,origin:{y:.4},colors}), 400);
+  setTimeout(() => confetti({particleCount:80,spread:60,origin:{x:.2,y:.7},colors}), 700);
+  setTimeout(() => confetti({particleCount:80,spread:60,origin:{x:.8,y:.7},colors}), 900);
+}
+
+// Stop propagation on modal box clicks
+document.querySelectorAll('.modal-box').forEach(el => el.addEventListener('click', e => e.stopPropagation()));
+
+// ════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════
+renderEventsGrid();
+renderMyTickets();
+updateCartBadge();
+</script>
+</body>
+</html>
