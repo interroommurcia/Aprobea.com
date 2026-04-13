@@ -7,6 +7,7 @@ import { downloadCSV, downloadExcel } from '@/lib/export'
 type Cliente = {
   id: string; nombre: string; apellidos: string; email: string; telefono: string;
   tipo_inversor: string; capital_inicial: number; estado: string; created_at: string;
+  membresia_crowdfunding_activa?: boolean; membresia_gratis?: boolean; membresia_expira_en?: string;
   participaciones?: { id: string; importe: number; estado: string }[]
 }
 
@@ -37,6 +38,15 @@ export default function ClientesPage() {
 
   async function handleEstado(id: string, estado: string) {
     await fetch('/api/backoffice/clientes', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, estado }) })
+    load()
+  }
+
+  async function toggleMembresia(id: string, gratis: boolean) {
+    await fetch('/api/backoffice/clientes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, membresia_gratis: gratis, membresia_crowdfunding_activa: gratis }),
+    })
     load()
   }
 
@@ -113,7 +123,7 @@ export default function ClientesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '0.5px solid var(--gold-border)' }}>
-                {['Nombre', 'Email', 'Tipo', 'Capital', 'Estado', 'Participaciones', ''].map(h => (
+                {['Nombre', 'Email', 'Tipo', 'Capital', 'Estado', 'Membresía CF', 'Participaciones', ''].map(h => (
                   <th key={h} style={{ padding: '0.85rem 1.5rem', textAlign: 'left', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{h}</th>
                 ))}
               </tr>
@@ -135,6 +145,35 @@ export default function ClientesPage() {
                     >
                       <option value="lead">Lead</option><option value="activo">Activo</option><option value="inactivo">Inactivo</option><option value="rechazado">Rechazado</option>
                     </select>
+                  </td>
+                  <td style={{ padding: '0.9rem 1.5rem' }}>
+                    {/* Badge estado membresía + toggle acceso gratis */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{
+                        padding: '2px 7px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em',
+                        borderRadius: 'var(--radius)', fontWeight: 600,
+                        background: (c.membresia_crowdfunding_activa || c.membresia_gratis) ? 'rgba(109,200,109,0.12)' : 'rgba(255,255,255,0.04)',
+                        color: (c.membresia_crowdfunding_activa || c.membresia_gratis) ? '#6dc86d' : 'var(--text-3)',
+                        border: `0.5px solid ${(c.membresia_crowdfunding_activa || c.membresia_gratis) ? '#6dc86d44' : 'var(--gold-border)'}`,
+                      }}>
+                        {c.membresia_gratis ? '★ Gratis' : c.membresia_crowdfunding_activa ? '✓ Activa' : 'Sin membresía'}
+                      </span>
+                      {c.membresia_expira_en && !c.membresia_gratis && (
+                        <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
+                          Vence {new Date(c.membresia_expira_en).toLocaleDateString('es-ES')}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => toggleMembresia(c.id, !c.membresia_gratis)}
+                        style={{
+                          marginTop: '2px', padding: '2px 7px', fontSize: '9px', cursor: 'pointer',
+                          background: 'transparent', borderRadius: 'var(--radius)', letterSpacing: '0.08em',
+                          border: '0.5px solid var(--gold-border)', color: 'var(--gold-200)',
+                        }}
+                      >
+                        {c.membresia_gratis ? 'Quitar acceso gratis' : 'Dar acceso gratis'}
+                      </button>
+                    </div>
                   </td>
                   <td style={{ padding: '0.9rem 1.5rem', fontSize: '0.82rem', color: 'var(--text-2)' }}>{c.participaciones?.length ?? 0}</td>
                   <td style={{ padding: '0.9rem 1.5rem' }}>

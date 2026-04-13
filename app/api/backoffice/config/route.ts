@@ -6,10 +6,11 @@ function isAdmin(req: NextRequest) {
 }
 
 const DEFAULTS: Record<string, string> = {
-  precio_suscripcion_anual:    '29',
-  precio_reserva_npl:          '1000',
-  precio_reserva_crowdfunding: '100',
-  pagos_activos:               'false',
+  precio_suscripcion_anual:         '29',
+  precio_reserva_npl:               '1000',
+  precio_reserva_crowdfunding:      '100',
+  precio_membresia_crowdfunding:    '60',
+  pagos_activos:                    'false',
 }
 
 export async function GET(req: NextRequest) {

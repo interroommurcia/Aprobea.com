@@ -53,20 +53,62 @@ export async function POST(req: NextRequest) {
             .update({ estado: 'activo', suscripcion_activa: true })
             .eq('user_id', meta.user_id)
         }
+
+        // ── Membresía crowdfunding ────────────────────────────────────────
+        if (meta.flujo === 'membresia_crowdfunding' && meta.user_id) {
+          const expira = new Date()
+          expira.setFullYear(expira.getFullYear() + 1)
+          await supabaseAdmin
+            .from('clientes')
+            .update({
+              membresia_crowdfunding_activa: true,
+              membresia_expira_en: expira.toISOString(),
+              estado: 'activo',
+            })
+            .eq('user_id', meta.user_id)
+        }
         break
       }
 
-      /* ── Renovación de suscripción ───────────────────────────────────── */
+      /* ── Renovación de suscripción / membresía ──────────────────────── */
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as import('stripe').Stripe.Invoice & { subscription?: string }
         const sub     = invoice.subscription as string | null
         if (sub) {
           const subscription = await stripe.subscriptions.retrieve(sub)
           const userId = subscription.metadata?.user_id
+          const flujo  = subscription.metadata?.flujo
           if (userId) {
+            if (flujo === 'membresia_crowdfunding') {
+              const expira = new Date()
+              expira.setFullYear(expira.getFullYear() + 1)
+              await supabaseAdmin
+                .from('clientes')
+                .update({ membresia_crowdfunding_activa: true, membresia_expira_en: expira.toISOString() })
+                .eq('user_id', userId)
+            } else {
+              await supabaseAdmin
+                .from('clientes')
+                .update({ suscripcion_activa: true })
+                .eq('user_id', userId)
+            }
+          }
+        }
+        break
+      }
+
+      /* ── Pago fallido: desactivar acceso ─────────────────────────────── */
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as import('stripe').Stripe.Invoice & { subscription?: string }
+        const sub     = invoice.subscription as string | null
+        if (sub) {
+          const subscription = await stripe.subscriptions.retrieve(sub)
+          const userId = subscription.metadata?.user_id
+          const flujo  = subscription.metadata?.flujo
+          if (userId && flujo === 'membresia_crowdfunding') {
             await supabaseAdmin
               .from('clientes')
-              .update({ suscripcion_activa: true })
+              .update({ membresia_crowdfunding_activa: false })
               .eq('user_id', userId)
           }
         }
@@ -77,11 +119,19 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.deleted': {
         const sub    = event.data.object as import('stripe').Stripe.Subscription
         const userId = sub.metadata?.user_id
+        const flujo  = sub.metadata?.flujo
         if (userId) {
-          await supabaseAdmin
-            .from('clientes')
-            .update({ suscripcion_activa: false })
-            .eq('user_id', userId)
+          if (flujo === 'membresia_crowdfunding') {
+            await supabaseAdmin
+              .from('clientes')
+              .update({ membresia_crowdfunding_activa: false })
+              .eq('user_id', userId)
+          } else {
+            await supabaseAdmin
+              .from('clientes')
+              .update({ suscripcion_activa: false })
+              .eq('user_id', userId)
+          }
         }
         break
       }

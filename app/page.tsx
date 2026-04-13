@@ -9,6 +9,9 @@ export default function Home() {
   const [openModal, setOpenModal] = useState<'npl' | 'crowdfunding' | null>(null)
   const [nplDone, setNplDone] = useState(false)
   const [cfDone, setCfDone] = useState(false)
+  const [cfForm, setCfForm] = useState({ nombre: '', apellidos: '', email: '', telefono: '' })
+  const [cfLoading, setCfLoading] = useState(false)
+  const [cfError, setCfError] = useState('')
   const [scrolled, setScrolled] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -932,67 +935,110 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MODAL CROWDFUNDING */}
+      {/* MODAL CROWDFUNDING — Membresía anual */}
       <div
         className={`modal-overlay${openModal === 'crowdfunding' ? ' active' : ''}`}
         onClick={e => { if (e.target === e.currentTarget) close() }}
       >
-        <div className="modal">
+        <div className="modal" style={{ maxWidth: '520px' }}>
           <button className="modal-close" onClick={close}>×</button>
-          <div className="reg-badge" style={{ marginBottom: '1.5rem' }} data-es="Crowdfunding Inmobiliario" data-en="Real Estate Crowdfunding">
-            Crowdfunding Inmobiliario
+          <div className="reg-badge" style={{ marginBottom: '1.5rem' }}>Crowdfunding Inmobiliario</div>
+          <h2 className="modal-title serif">{lang === 'es' ? 'Membresía Anual' : 'Annual Membership'}</h2>
+
+          {/* Pricing card */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(201,160,67,0.08), rgba(201,160,67,0.03))',
+            border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)',
+            padding: '1.5rem', marginBottom: '1.75rem', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.75rem' }}>
+              {lang === 'es' ? 'Consigna de documento y capital' : 'Document & capital custody'}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '4px', marginBottom: '0.25rem' }}>
+              <span className="serif" style={{ fontSize: '3.2rem', fontWeight: 300, color: 'var(--gold-100)', lineHeight: 1 }}>60€</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: '0.4rem' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', margin: 0 }}>
+              {lang === 'es' ? '72,60€ total · Renovación automática anual · Cancela cuando quieras' : '€72.60 total · Auto-renews yearly · Cancel anytime'}
+            </p>
+            {/* Features */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.25rem', textAlign: 'left' }}>
+              {[
+                lang === 'es' ? '✓  Acceso al marketplace privado de operaciones' : '✓  Access to private deal marketplace',
+                lang === 'es' ? '✓  Consigna de documentos e informes PDF' : '✓  Document & PDF report custody',
+                lang === 'es' ? '✓  Seguimiento de cartera en tiempo real' : '✓  Real-time portfolio tracking',
+                lang === 'es' ? '✓  Asesor personal asignado' : '✓  Dedicated personal advisor',
+              ].map((f, i) => (
+                <span key={i} style={{ fontSize: '0.82rem', color: 'var(--text-1)' }}>{f}</span>
+              ))}
+            </div>
           </div>
-          <h2 className="modal-title serif" data-es="Cuenta Crowdfunding" data-en="Crowdfunding Account">Cuenta Crowdfunding</h2>
-          <p className="modal-sub" data-es="Empieza a invertir desde 1.000€. Acceso inmediato a proyectos seleccionados." data-en="Start investing from €1,000. Immediate access to curated projects.">
-            Empieza a invertir desde 1.000€. Acceso inmediato a proyectos seleccionados.
-          </p>
-          <div className="form-steps">
-            <div className={`form-step${cfDone ? ' done' : ' active'}`} />
-            <div className={`form-step${cfDone ? ' done active' : ''}`} />
-          </div>
-          {cfDone ? successBox(close, lang === 'es' ? 'Cuenta creada' : 'Account created') : (
-            <form onSubmit={e => { e.preventDefault(); setCfDone(true) }}>
+
+          {cfDone ? successBox(close, lang === 'es' ? '¡Redirigiendo a pago!' : 'Redirecting to payment!') : (
+            <form onSubmit={async e => {
+              e.preventDefault()
+              setCfLoading(true)
+              setCfError('')
+              try {
+                // 1. Registrar cliente en Supabase
+                const reg = await fetch('/api/registro', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ...cfForm, tipo_inversor: 'crowdfunding' }),
+                })
+                const regData = await reg.json()
+                const userId = regData?.user_id ?? null
+
+                // 2. Crear sesión de membresía en Stripe
+                const res = await fetch('/api/stripe/membresia', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ user_id: userId, email: cfForm.email, nombre: `${cfForm.nombre} ${cfForm.apellidos}` }),
+                })
+                const { url, error: stripeErr } = await res.json()
+                if (stripeErr) throw new Error(stripeErr)
+                window.location.href = url
+              } catch (err: any) {
+                setCfError(err.message ?? 'Error al procesar el pago')
+                setCfLoading(false)
+              }
+            }}>
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label" data-es="Nombre" data-en="First name">Nombre</label>
-                  <input type="text" className="form-input" placeholder="María" required />
+                  <label className="form-label">{lang === 'es' ? 'Nombre' : 'First name'}</label>
+                  <input type="text" className="form-input" placeholder="María" required
+                    value={cfForm.nombre} onChange={e => setCfForm(f => ({ ...f, nombre: e.target.value }))} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label" data-es="Apellidos" data-en="Last name">Apellidos</label>
-                  <input type="text" className="form-input" placeholder="López" required />
+                  <label className="form-label">{lang === 'es' ? 'Apellidos' : 'Last name'}</label>
+                  <input type="text" className="form-input" placeholder="López" required
+                    value={cfForm.apellidos} onChange={e => setCfForm(f => ({ ...f, apellidos: e.target.value }))} />
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label" data-es="Email" data-en="Email">Email</label>
-                <input type="email" className="form-input" placeholder="maria@email.com" required />
+                <label className="form-label">Email</label>
+                <input type="email" className="form-input" placeholder="maria@email.com" required
+                  value={cfForm.email} onChange={e => setCfForm(f => ({ ...f, email: e.target.value }))} />
               </div>
               <div className="form-group">
-                <label className="form-label" data-es="Teléfono" data-en="Phone">Teléfono</label>
-                <input type="tel" className="form-input" placeholder="+34 600 000 000" />
+                <label className="form-label">{lang === 'es' ? 'Teléfono' : 'Phone'}</label>
+                <input type="tel" className="form-input" placeholder="+34 600 000 000"
+                  value={cfForm.telefono} onChange={e => setCfForm(f => ({ ...f, telefono: e.target.value }))} />
               </div>
-              <div className="form-group">
-                <label className="form-label" data-es="Capital inicial estimado" data-en="Initial capital estimate">Capital inicial estimado</label>
-                <select className="form-input">
-                  <option data-es="1.000€ — 5.000€" data-en="€1K — €5K">1.000€ — 5.000€</option>
-                  <option data-es="5.000€ — 15.000€" data-en="€5K — €15K">5.000€ — 15.000€</option>
-                  <option data-es="15.000€ — 50.000€" data-en="€15K — €50K">15.000€ — 50.000€</option>
-                  <option data-es="+50.000€ (ver cuenta Premium)" data-en="+€50K (see Premium account)">+50.000€ (ver cuenta Premium)</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label" data-es="Objetivo de inversión" data-en="Investment goal">Objetivo de inversión</label>
-                <select className="form-input">
-                  <option data-es="Rentabilidad pasiva" data-en="Passive income">Rentabilidad pasiva</option>
-                  <option data-es="Diversificación" data-en="Diversification">Diversificación</option>
-                  <option data-es="Ahorro a largo plazo" data-en="Long-term savings">Ahorro a largo plazo</option>
-                  <option data-es="Primera inversión inmobiliaria" data-en="First real estate investment">Primera inversión inmobiliaria</option>
-                </select>
-              </div>
-              <button type="submit" className="form-submit" data-es="Crear mi cuenta →" data-en="Create my account →">
-                Crear mi cuenta →
+
+              {cfError && (
+                <p style={{ color: '#e05', fontSize: '0.82rem', marginBottom: '0.75rem' }}>{cfError}</p>
+              )}
+
+              <button type="submit" className="form-submit" disabled={cfLoading} style={{ opacity: cfLoading ? 0.7 : 1 }}>
+                {cfLoading
+                  ? (lang === 'es' ? 'Procesando…' : 'Processing…')
+                  : (lang === 'es' ? 'Pagar membresía — 60€ + IVA →' : 'Pay membership — €60 + VAT →')}
               </button>
-              <p className="form-disclaimer" data-es="Acceso a tu panel en menos de 24h. Tus datos están cifrados y protegidos." data-en="Dashboard access within 24h. Your data is encrypted and protected.">
-                Acceso a tu panel en menos de 24h. Tus datos están cifrados y protegidos.
+              <p className="form-disclaimer">
+                {lang === 'es'
+                  ? 'Pago seguro con Stripe. Tarjeta o SEPA. Cancela en cualquier momento.'
+                  : 'Secure payment via Stripe. Card or SEPA. Cancel anytime.'}
               </p>
             </form>
           )}

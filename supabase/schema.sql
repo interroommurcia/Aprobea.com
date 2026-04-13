@@ -18,6 +18,14 @@ CREATE TABLE IF NOT EXISTS clientes (
   notas           TEXT
 );
 
+-- 1b. Columnas de membresía crowdfunding (ejecutar si la tabla ya existe)
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS membresia_crowdfunding_activa BOOLEAN DEFAULT FALSE;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS membresia_gratis              BOOLEAN DEFAULT FALSE;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS membresia_expira_en           TIMESTAMPTZ;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS stripe_customer_id            TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS stripe_subscription_id        TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS suscripcion_activa            BOOLEAN DEFAULT FALSE;
+
 -- 2. PARTICIPACIONES (cuenta de participaciones)
 CREATE TABLE IF NOT EXISTS participaciones (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
