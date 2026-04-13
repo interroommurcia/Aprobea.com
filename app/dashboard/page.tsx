@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
@@ -98,6 +98,7 @@ export default function DashboardPage() {
   const [chatArchivo, setChatArchivo] = useState<File | null>(null)
   const [chatEnviando, setChatEnviando] = useState(false)
   const [chatToken, setChatToken] = useState('')
+  const [renovando, setRenovando] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatFileRef = useRef<HTMLInputElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
@@ -211,6 +212,60 @@ export default function DashboardPage() {
       </div>
     </div>
   )
+
+  // ─── Acceso pausado: perfil existe pero membresía inactiva ───
+  const tieneAcceso = (cliente as any).membresia_crowdfunding_activa || (cliente as any).membresia_gratis || (cliente as any).suscripcion_activa
+  if (!tieneAcceso && cliente.tipo_inversor === 'crowdfunding') {
+    const handleRenovar = async () => {
+      setRenovando(true)
+      const res = await fetch('/api/stripe/membresia', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: (cliente as any).user_id, email: cliente.email, nombre: `${cliente.nombre} ${cliente.apellidos}` }),
+      })
+      const { url } = await res.json()
+      if (url) window.location.href = url
+      else setRenovando(false)
+    }
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-0)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div style={{ maxWidth: '460px', width: '100%', textAlign: 'center' }}>
+          {/* Icono */}
+          <div style={{ width: '72px', height: '72px', borderRadius: '50%', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', fontSize: '28px' }}>⏸</div>
+
+          <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '1rem' }}>Membresía Crowdfunding</div>
+          <h2 style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '2rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '1rem' }}>
+            Acceso temporalmente pausado
+          </h2>
+          <p style={{ color: 'var(--text-2)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+            Tu membresía anual ha vencido o el último pago no se procesó correctamente. Tu perfil y datos están intactos — reactiva tu acceso en cualquier momento.
+          </p>
+
+          {/* Pricing reminder */}
+          <div style={{ background: 'rgba(201,160,67,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.75rem' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '0.5rem' }}>Membresía anual · Consigna de documento y capital</div>
+            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-cormorant), serif', fontWeight: 300, color: 'var(--gold-100)' }}>60€ <span style={{ fontSize: '0.9rem', color: 'var(--text-2)' }}>+ IVA / año</span></div>
+          </div>
+
+          <button
+            onClick={handleRenovar}
+            disabled={renovando}
+            style={{ width: '100%', padding: '14px', background: 'var(--gold-200)', color: 'var(--bg-0)', border: 'none', borderRadius: 'var(--radius)', fontFamily: 'var(--font-outfit), sans-serif', fontSize: '12px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600, marginBottom: '0.75rem', opacity: renovando ? 0.7 : 1 }}
+          >
+            {renovando ? 'Redirigiendo…' : 'Reactivar membresía →'}
+          </button>
+
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '1.5rem' }}>
+            ¿Tienes algún problema? Escríbenos a <a href="mailto:hola@gruposkyline.org" style={{ color: 'var(--gold-200)' }}>hola@gruposkyline.org</a>
+          </p>
+
+          <button onClick={handleLogout} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}>
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // ─── Tab: Dashboard ───────────────────────────────────────
   const tabDashboard = (
