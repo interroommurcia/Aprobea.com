@@ -467,11 +467,31 @@ export default function Home() {
             <span className="eco-badge" data-es="Inversores · Crowdfunding" data-en="Investors · Crowdfunding">Inversores · Crowdfunding</span>
             <h3 className="eco-title serif" data-es="Crowdfunding Inmobiliario" data-en="Real Estate Crowdfunding">Crowdfunding Inmobiliario</h3>
             <p className="eco-desc"
-              data-es="Desde 1.000€. Participa en operaciones inmobiliarias seleccionadas con retornos atractivos, sin necesidad de grandes capitales. Democratizamos la inversión de alto nivel."
-              data-en="From €1,000. Participate in curated real estate deals with attractive returns, no large capital required. We democratize premium investing."
+              data-es="Desde 1.000€. Participa en operaciones inmobiliarias seleccionadas con retornos atractivos, sin necesidad de grandes capitales."
+              data-en="From €1,000. Participate in curated real estate deals with attractive returns, no large capital required."
             >
-              Desde 1.000€. Participa en operaciones inmobiliarias seleccionadas con retornos atractivos, sin necesidad de grandes capitales. Democratizamos la inversión de alto nivel.
+              Desde 1.000€. Participa en operaciones inmobiliarias seleccionadas con retornos atractivos, sin necesidad de grandes capitales.
             </p>
+
+            {/* Pricing pill visible en la tarjeta */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(201,160,67,0.07)', border: '0.5px solid var(--gold-border)',
+              borderRadius: 'var(--radius)', padding: '0.65rem 1rem', margin: '1.25rem 0',
+            }}>
+              <div>
+                <div style={{ fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '3px' }}>
+                  {lang === 'es' ? 'Membresía anual' : 'Annual membership'}
+                </div>
+                <div style={{ fontSize: '1.15rem', fontFamily: 'var(--font-cormorant), serif', fontWeight: 300, color: 'var(--gold-100)' }}>
+                  60€ <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
+                </div>
+              </div>
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', textAlign: 'right', maxWidth: '120px', lineHeight: 1.5 }}>
+                {lang === 'es' ? 'Consigna de documento y capital' : 'Document & capital custody'}
+              </div>
+            </div>
+
             <a className="eco-link" data-es="Unirme como inversor →" data-en="Join as investor →">Unirme como inversor →</a>
           </div>
         </div>
@@ -540,6 +560,18 @@ export default function Home() {
             >
               Para inversores con capital desde 50.000€ buscando exposición a activos NPL y carteras de deuda de alto rendimiento.
             </p>
+            {/* Sin cuota de membresía para NPL */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              background: 'rgba(109,200,109,0.06)', border: '0.5px solid rgba(109,200,109,0.2)',
+              borderRadius: 'var(--radius)', padding: '0.65rem 1rem', margin: '1rem 0',
+            }}>
+              <span style={{ color: '#6dc86d', fontSize: '14px' }}>✓</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-2)' }}>
+                {lang === 'es' ? 'Sin cuota de membresía · Acceso por invitación' : 'No membership fee · Invitation-only access'}
+              </span>
+            </div>
+
             <ul className="reg-features">
               <li data-es="Acceso a cartera NPL exclusiva" data-en="Access to exclusive NPL portfolio">Acceso a cartera NPL exclusiva</li>
               <li data-es="Gestor personal dedicado" data-en="Dedicated personal manager">Gestor personal dedicado</li>
@@ -561,15 +593,32 @@ export default function Home() {
             >
               Invierte en inmuebles seleccionados desde cualquier capital. Diversifica sin barreras de entrada.
             </p>
+
+            {/* Precio membresía bien visible */}
+            <div style={{
+              background: 'rgba(201,160,67,0.06)', border: '0.5px solid var(--gold-border)',
+              borderRadius: 'var(--radius)', padding: '1rem', margin: '1rem 0',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
+                <span style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--gold-100)' }}>60€</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', lineHeight: 1.5 }}>
+                {lang === 'es'
+                  ? 'Membresía anual · Consigna de documento y capital · Renovación automática'
+                  : 'Annual membership · Document & capital custody · Auto-renewal'}
+              </div>
+            </div>
+
             <ul className="reg-features">
-              <li data-es="Acceso a proyectos de crowdfunding" data-en="Access to crowdfunding projects">Acceso a proyectos de crowdfunding</li>
-              <li data-es="Panel de seguimiento de proyectos" data-en="Project tracking dashboard">Panel de seguimiento de proyectos</li>
+              <li data-es="Acceso al marketplace privado de operaciones" data-en="Access to private deal marketplace">Acceso al marketplace privado de operaciones</li>
+              <li data-es="Consigna de documentos e informes PDF" data-en="Document & PDF report custody">Consigna de documentos e informes PDF</li>
+              <li data-es="Panel de seguimiento en tiempo real" data-en="Real-time tracking dashboard">Panel de seguimiento en tiempo real</li>
               <li data-es="Historial de inversiones" data-en="Investment history">Historial de inversiones</li>
-              <li data-es="Documentación digital integrada" data-en="Integrated digital documentation">Documentación digital integrada</li>
-              <li data-es="Notificaciones de nuevas oportunidades" data-en="New opportunity notifications">Notificaciones de nuevas oportunidades</li>
+              <li data-es="Asesor personal asignado" data-en="Dedicated personal advisor">Asesor personal asignado</li>
             </ul>
-            <button className="btn-register btn-register-outline" onClick={() => setOpenModal('crowdfunding')} data-es="Crear cuenta Crowdfunding" data-en="Create Crowdfunding Account">
-              Crear cuenta Crowdfunding
+            <button className="btn-register btn-register-outline" onClick={() => setOpenModal('crowdfunding')} data-es="Unirme · 60€ + IVA / año" data-en="Join · €60 + VAT / year">
+              Unirme · 60€ + IVA / año
             </button>
           </div>
         </div>
