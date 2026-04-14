@@ -14,11 +14,18 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('ia_documentos')
-    .select('id, nombre, created_at, char_length(contenido) as caracteres')
+    .select('id, nombre, created_at, contenido')
     .order('created_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [])
+
+  const result = (data ?? []).map((d: any) => ({
+    id: d.id,
+    nombre: d.nombre,
+    created_at: d.created_at,
+    caracteres: d.contenido?.length ?? 0,
+  }))
+  return NextResponse.json(result)
 }
 
 export async function DELETE(req: NextRequest) {
