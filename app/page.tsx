@@ -162,7 +162,8 @@ export default function Home() {
             <button className={`lang-btn${lang === 'es' ? ' active' : ''}`} onClick={() => setLangState('es')}>ES</button>
             <button className={`lang-btn${lang === 'en' ? ' active' : ''}`} onClick={() => setLangState('en')}>EN</button>
           </div>
-          <a href="#registro" className="btn-nav" data-es="Acceder" data-en="Access">Acceder</a>
+          <a href="/login" className="btn-nav" data-es="Iniciar sesión" data-en="Log in">Iniciar sesión</a>
+          <a href="#registro" className="btn-nav" style={{ background: 'var(--gold-200)', color: '#000', fontWeight: 600 }} data-es="Regístrate" data-en="Sign up">Regístrate</a>
         </div>
       </nav>
 
