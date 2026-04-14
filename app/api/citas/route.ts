@@ -1,6 +1,7 @@
 /**
- * GET  /api/citas  → citas del cliente autenticado
- * POST /api/citas  → crear solicitud de cita (llamada interna desde IA)
+ * GET   /api/citas         → citas del cliente autenticado
+ * POST  /api/citas         → crear solicitud (desde IA)
+ * PATCH /api/citas         → cliente confirma o rechaza una reprogramación
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
     .from('citas_solicitudes')
     .insert({
       cliente_id: cliente.id,
-      tipo: body.tipo ?? 'llamada',
+      tipo: 'llamada',
       fecha_propuesta: body.fecha_propuesta ?? null,
       hora_propuesta: body.hora_propuesta ?? null,
       mensaje: body.mensaje ?? '',
@@ -55,8 +56,73 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Notificación interna para el admin (tabla notificaciones_admin si existe, o log)
-  // Aquí podríamos enviar email — por ahora queda en la tabla para backoffice
   return NextResponse.json(data, { status: 201 })
+}
+
+export async function PATCH(req: NextRequest) {
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '')
+  if (!token) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const cliente = await getCliente(token)
+  if (!cliente) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  const { id, accion } = await req.json() // accion: 'aceptar' | 'rechazar'
+
+  // Verificar que la cita es de este cliente y está en estado reprogramada
+  const { data: cita } = await supabaseAdmin
+    .from('citas_solicitudes')
+    .select('*')
+    .eq('id', id)
+    .eq('cliente_id', cliente.id)
+    .eq('estado', 'reprogramada')
+    .single()
+
+  if (!cita) return NextResponse.json({ error: 'Cita no encontrada o no reprogramada' }, { status: 404 })
+
+  if (accion === 'aceptar') {
+    // Confirmar la cita y crear eventos en calendarios
+    await supabaseAdmin.from('citas_solicitudes').update({ estado: 'confirmada', updated_at: new Date().toISOString() }).eq('id', id)
+
+    if (cita.fecha_confirmada) {
+      const nombreCliente = `${cliente.nombre} ${cliente.apellidos}`
+
+      await Promise.all([
+        // Evento en el calendario del cliente
+        supabaseAdmin.from('eventos_calendario').insert({
+          cliente_id: cliente.id,
+          titulo: '📞 Llamada GrupoSkyLine',
+          descripcion: 'Llamada confirmada con el equipo de GrupoSkyLine',
+          fecha: cita.fecha_confirmada,
+          hora: cita.hora_confirmada ?? '10:00',
+          tipo: 'recordatorio',
+        }),
+        // Evento en el calendario del admin
+        supabaseAdmin.from('eventos_calendario').insert({
+          cliente_id: null,
+          user_id: null,
+          titulo: `📞 Llamada: ${nombreCliente}`,
+          descripcion: `Llamada confirmada por el cliente. Motivo: ${cita.mensaje}`,
+          fecha: cita.fecha_confirmada,
+          hora: cita.hora_confirmada ?? '10:00',
+          tipo: 'operacion',
+        }),
+      ])
+    }
+
+    return NextResponse.json({ ok: true, estado: 'confirmada' })
+  }
+
+  if (accion === 'rechazar') {
+    // Volver a pendiente para que el admin lo gestione
+    await supabaseAdmin.from('citas_solicitudes').update({
+      estado: 'pendiente',
+      fecha_confirmada: null,
+      hora_confirmada: null,
+      nota_admin: (cita.nota_admin ?? '') + ' [Cliente rechazó la reprogramación]',
+      updated_at: new Date().toISOString(),
+    }).eq('id', id)
+
+    return NextResponse.json({ ok: true, estado: 'pendiente' })
+  }
+
+  return NextResponse.json({ error: 'Acción no válida' }, { status: 400 })
 }

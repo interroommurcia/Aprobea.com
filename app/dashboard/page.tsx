@@ -95,11 +95,13 @@ export default function DashboardPage() {
   const [showCalWidget, setShowCalWidget] = useState(false)
   // Chat IA
   type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito'; cita?: { tipo: string; fecha?: string; hora?: string } }
+  type CitaSolicitud = { id: string; tipo: string; estado: string; fecha_propuesta: string | null; hora_propuesta: string | null; fecha_confirmada: string | null; hora_confirmada: string | null; mensaje: string; nota_admin: string | null; created_at: string }
   const [iaMsgs, setIaMsgs] = useState<IaMsg[]>([])
   const [iaInput, setIaInput] = useState('')
   const [iaLoading, setIaLoading] = useState(false)
   const [iaStream, setIaStream] = useState('')
   const [iaUso, setIaUso] = useState<{ gasto: number; limite: number; periodo: string; modoGratuito: boolean } | null>(null)
+  const [misCitas, setMisCitas] = useState<CitaSolicitud[]>([])
   const iaChatEndRef = useRef<HTMLDivElement>(null)
   const [expandedPart, setExpandedPart] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -145,6 +147,10 @@ export default function DashboardPage() {
             setChatToken(token)
             setChatToken2(token)
             loadIaUso(token)
+            // Cargar citas del cliente
+            fetch('/api/citas', { headers: { Authorization: `Bearer ${token}` } })
+              .then(r => r.ok ? r.json() : [])
+              .then(d => setMisCitas(Array.isArray(d) ? d : []))
             // Load conversations
             fetch('/api/chat', { headers: { Authorization: `Bearer ${token}` } })
               .then(r => r.ok ? r.json() : [])
@@ -989,6 +995,48 @@ export default function DashboardPage() {
           <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>✦</div>
         </div>
       )}
+
+      {/* ── CITAS REPROGRAMADAS PENDIENTES DE CONFIRMAR ── */}
+      {misCitas.filter(c => c.estado === 'reprogramada').map(cita => (
+        <div key={cita.id} style={{ background: 'rgba(77,166,212,0.06)', border: '0.5px solid rgba(77,166,212,0.35)', borderRadius: '14px', padding: '1.1rem 1.25rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#4da6d4', marginBottom: '2px' }}>📅 Nueva propuesta de horario</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
+                El equipo te propone una llamada
+                {cita.fecha_confirmada ? ` el ${new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}` : ''}
+              </div>
+              {cita.nota_admin && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>{cita.nota_admin}</div>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={async () => {
+                await fetch('/api/citas', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` }, body: JSON.stringify({ id: cita.id, accion: 'aceptar' }) })
+                setMisCitas(prev => prev.map(c => c.id === cita.id ? { ...c, estado: 'confirmada' } : c))
+                if (chatToken2) {
+                  fetch('/api/citas', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then(d => setMisCitas(Array.isArray(d) ? d : []))
+                  // Recargar eventos del calendario
+                  fetch('/api/calendario', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then((evs: EventoCalendario[]) => setEventos(prev => {
+                    const autoEvs = prev.filter(e => e.id.startsWith('auto-venc-'))
+                    return [...evs, ...autoEvs]
+                  }))
+                }
+              }}
+              style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: '#6dc86d', border: 'none', color: '#0a0a0a' }}>
+              ✓ Aceptar llamada
+            </button>
+            <button
+              onClick={async () => {
+                await fetch('/api/citas', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` }, body: JSON.stringify({ id: cita.id, accion: 'rechazar' }) })
+                setMisCitas(prev => prev.map(c => c.id === cita.id ? { ...c, estado: 'pendiente' } : c))
+              }}
+              style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: 'transparent', border: '0.5px solid rgba(224,86,86,0.5)', color: '#e05656' }}>
+              ✕ No me viene bien
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Ventana de chat */}
       <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>

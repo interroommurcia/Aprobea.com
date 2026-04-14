@@ -1,6 +1,9 @@
 /**
- * GET   /api/backoffice/citas          → todas las solicitudes
- * PATCH /api/backoffice/citas          → confirmar / denegar / reprogramar
+ * GET   /api/backoffice/citas   → todas las solicitudes con datos del cliente
+ * PATCH /api/backoffice/citas   → confirmar / denegar / reprogramar
+ *   - confirmar:    crea evento en calendario del cliente + calendario admin
+ *   - reprogramar:  notifica al cliente para que confirme (no crea evento aún)
+ *   - denegar:      notifica al cliente
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -15,7 +18,10 @@ export async function GET(req: NextRequest) {
   const estado = req.nextUrl.searchParams.get('estado')
   let query = supabaseAdmin
     .from('citas_solicitudes')
-    .select(`*, clientes(nombre, apellidos, email, telefono)`)
+    .select(`
+      *,
+      clientes(id, nombre, apellidos, email, telefono, tipo_inversor, capital_inicial, estado, created_at)
+    `)
     .order('created_at', { ascending: false })
 
   if (estado) query = query.eq('estado', estado)
@@ -25,6 +31,38 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(data ?? [])
 }
 
+async function crearEventosCalendario(
+  clienteId: string,
+  clienteNombre: string,
+  fecha: string,
+  hora: string | null,
+  titulo: string,
+) {
+  const horaStr = hora ?? '10:00'
+
+  await Promise.all([
+    // Evento en el calendario del cliente
+    supabaseAdmin.from('eventos_calendario').insert({
+      cliente_id: clienteId,
+      titulo: `📞 ${titulo}`,
+      descripcion: 'Llamada agendada con el equipo de GrupoSkyLine',
+      fecha,
+      hora: horaStr,
+      tipo: 'recordatorio',
+    }),
+    // Evento en el calendario del admin (sin cliente_id para que aparezca en backoffice)
+    supabaseAdmin.from('eventos_calendario').insert({
+      cliente_id: null,
+      user_id: null,
+      titulo: `📞 Llamada: ${clienteNombre}`,
+      descripcion: `Llamada confirmada con cliente`,
+      fecha,
+      hora: horaStr,
+      tipo: 'operacion',
+    }),
+  ])
+}
+
 export async function PATCH(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
@@ -32,42 +70,57 @@ export async function PATCH(req: NextRequest) {
 
   const { data: cita, error: citaError } = await supabaseAdmin
     .from('citas_solicitudes')
-    .update({ estado, fecha_confirmada, hora_confirmada, nota_admin, updated_at: new Date().toISOString() })
+    .update({
+      estado,
+      fecha_confirmada: fecha_confirmada || null,
+      hora_confirmada: hora_confirmada || null,
+      nota_admin: nota_admin || null,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', id)
-    .select('*, clientes(id, nombre)')
+    .select('*, clientes(id, nombre, apellidos)')
     .single()
 
   if (citaError) return NextResponse.json({ error: citaError.message }, { status: 500 })
 
-  // Crear notificación para el cliente
   const clienteId = cita.clientes?.id ?? cita.cliente_id
-  const clienteNombre = cita.clientes?.nombre ?? 'Cliente'
+  const clienteNombre = cita.clientes ? `${cita.clientes.nombre} ${cita.clientes.apellidos}` : 'Cliente'
 
-  let titulo = ''
-  let mensaje = ''
+  // ── CONFIRMADA: crear eventos en ambos calendarios ──────────────
+  if (estado === 'confirmada' && fecha_confirmada) {
+    await crearEventosCalendario(clienteId, clienteNombre, fecha_confirmada, hora_confirmada, 'Llamada GrupoSkyLine')
 
-  if (estado === 'confirmada') {
-    titulo = '✓ Cita confirmada'
-    const fechaStr = fecha_confirmada
-      ? `el ${new Date(fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${hora_confirmada ? ` a las ${hora_confirmada}` : ''}`
-      : 'próximamente'
-    mensaje = `Tu solicitud de ${cita.tipo} ha sido confirmada ${fechaStr}.${nota_admin ? ` Nota del equipo: ${nota_admin}` : ''}`
-  } else if (estado === 'denegada') {
-    titulo = 'Solicitud de cita no disponible'
-    mensaje = `Lamentablemente no podemos atenderte en ese momento.${nota_admin ? ` ${nota_admin}` : ' Puedes escribirnos a hola@gruposkyline.org para encontrar otra fecha.'}`
-  } else if (estado === 'reprogramada') {
-    titulo = '📅 Nueva propuesta de horario'
-    const fechaStr = fecha_confirmada
-      ? `el ${new Date(fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${hora_confirmada ? ` a las ${hora_confirmada}` : ''}`
-      : 'en otra fecha'
-    mensaje = `Te proponemos ${cita.tipo} ${fechaStr}.${nota_admin ? ` ${nota_admin}` : ''} Confirma respondiendo a hola@gruposkyline.org`
-  }
-
-  if (titulo && clienteId) {
+    const fechaStr = new Date(fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
     await supabaseAdmin.from('notificaciones').insert({
       cliente_id: clienteId,
-      titulo,
-      mensaje,
+      titulo: '✓ Llamada confirmada — añadida a tu calendario',
+      mensaje: `Tu llamada está confirmada el ${fechaStr}${hora_confirmada ? ` a las ${hora_confirmada}` : ''}.${nota_admin ? ` ${nota_admin}` : ''} Ya aparece en tu calendario.`,
+      tipo: 'cita',
+      leida: false,
+    })
+  }
+
+  // ── REPROGRAMADA: el cliente tiene que confirmar ──────────────
+  if (estado === 'reprogramada') {
+    const fechaStr = fecha_confirmada
+      ? new Date(fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+      : null
+
+    await supabaseAdmin.from('notificaciones').insert({
+      cliente_id: clienteId,
+      titulo: '📅 Nueva propuesta de horario — confirma en el dashboard',
+      mensaje: `Te proponemos una llamada${fechaStr ? ` el ${fechaStr}${hora_confirmada ? ` a las ${hora_confirmada}` : ''}` : ''}.${nota_admin ? ` ${nota_admin}` : ''} Acepta o rechaza desde la pestaña "Asistente IA" de tu dashboard.`,
+      tipo: 'cita',
+      leida: false,
+    })
+  }
+
+  // ── DENEGADA ──────────────────────────────────────────────────
+  if (estado === 'denegada') {
+    await supabaseAdmin.from('notificaciones').insert({
+      cliente_id: clienteId,
+      titulo: 'Solicitud de llamada no disponible',
+      mensaje: `${nota_admin || 'No tenemos disponibilidad en ese momento. Puedes escribirnos a hola@gruposkyline.org para encontrar otra fecha.'}`,
       tipo: 'cita',
       leida: false,
     })

@@ -13,7 +13,17 @@ type Cita = {
   fecha_confirmada: string | null
   hora_confirmada: string | null
   nota_admin: string | null
-  clientes: { nombre: string; apellidos: string; email: string; telefono: string | null } | null
+  clientes: {
+    id: string
+    nombre: string
+    apellidos: string
+    email: string
+    telefono: string | null
+    tipo_inversor: string
+    capital_inicial: number
+    estado: string
+    created_at: string
+  } | null
 }
 
 const ESTADO_STYLE: Record<string, { color: string; bg: string; label: string }> = {
@@ -120,37 +130,64 @@ export default function CitasPage() {
 
                 {/* Info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {/* Cabecera: nombre + estado */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
-                      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)' }}>
-                        {cliente ? `${cliente.nombre} ${cliente.apellidos}` : 'Cliente'}
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-0)' }}>
+                        {cliente ? `${cliente.nombre} ${cliente.apellidos}` : 'Cliente desconocido'}
                       </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: '8px' }}>
-                        Llamada telefónica
-                      </span>
+                      {cliente && (
+                        <span style={{ marginLeft: '8px', fontSize: '10px', background: cliente.tipo_inversor === 'npl' ? 'rgba(184,115,51,0.15)' : 'rgba(201,160,67,0.12)', color: cliente.tipo_inversor === 'npl' ? '#b87333' : '#C9A043', padding: '2px 8px', borderRadius: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          {cliente.tipo_inversor}
+                        </span>
+                      )}
                     </div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: est.color, background: est.bg, padding: '3px 10px', borderRadius: '20px' }}>
                       {est.label}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '6px', lineHeight: 1.5 }}>
+                  {/* Motivo de la llamada */}
+                  <div style={{ fontSize: '13px', color: 'var(--text-1)', marginBottom: '10px', lineHeight: 1.6, padding: '8px 12px', background: 'rgba(201,160,67,0.04)', borderRadius: '8px', borderLeft: '2px solid rgba(201,160,67,0.3)' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-3)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Motivo</span>
                     {cita.mensaje}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '1.5rem', fontSize: '11px', color: 'var(--text-3)', flexWrap: 'wrap' }}>
-                    {cita.fecha_propuesta && (
-                      <span>📅 {new Date(cita.fecha_propuesta + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}{cita.hora_propuesta ? ` · ${cita.hora_propuesta}` : ''}</span>
+                  {/* Datos de contacto */}
+                  <div style={{ display: 'flex', gap: '1rem', fontSize: '11px', color: 'var(--text-2)', flexWrap: 'wrap', marginBottom: '6px' }}>
+                    {cliente?.email && (
+                      <a href={`mailto:${cliente.email}`} style={{ color: 'var(--gold-200)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        ✉️ {cliente.email}
+                      </a>
                     )}
-                    {cliente?.email && <span>✉️ {cliente.email}</span>}
-                    {cliente?.telefono && <span>📱 {cliente.telefono}</span>}
-                    <span>Recibida {new Date(cita.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    {cliente?.telefono && (
+                      <a href={`tel:${cliente.telefono}`} style={{ color: 'var(--gold-200)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        📱 {cliente.telefono}
+                      </a>
+                    )}
+                    {cita.fecha_propuesta && (
+                      <span style={{ color: 'var(--text-3)' }}>
+                        📅 Propone: {new Date(cita.fecha_propuesta + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}{cita.hora_propuesta ? ` · ${cita.hora_propuesta}` : ''}
+                      </span>
+                    )}
+                    <span style={{ color: 'var(--text-3)' }}>
+                      🕐 {new Date(cita.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
+
+                  {/* Capital / antigüedad si es cliente */}
+                  {cliente && (
+                    <div style={{ display: 'flex', gap: '1rem', fontSize: '10px', color: 'var(--text-3)', flexWrap: 'wrap' }}>
+                      {cliente.capital_inicial > 0 && <span>💰 Capital inicial: {cliente.capital_inicial.toLocaleString('es-ES')}€</span>}
+                      <span>👤 Estado: {cliente.estado}</span>
+                      <span>📆 Cliente desde {new Date(cliente.created_at).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</span>
+                    </div>
+                  )}
 
                   {/* Respuesta del admin si existe */}
                   {(cita.fecha_confirmada || cita.nota_admin) && (
                     <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--bg-1)', borderRadius: '8px', fontSize: '11px', color: 'var(--text-2)', borderLeft: `2px solid ${est.color}` }}>
-                      {cita.fecha_confirmada && <span>📅 Confirmada: {new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}{cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}</span>}
+                      {cita.fecha_confirmada && <span>📅 {new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}{cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}</span>}
                       {cita.nota_admin && <span style={{ marginLeft: '8px' }}>· {cita.nota_admin}</span>}
                     </div>
                   )}
