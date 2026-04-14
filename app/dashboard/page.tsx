@@ -79,7 +79,7 @@ function PropertyIcon({ tipo }: { tipo: string }) {
 export default function DashboardPage() {
   const { lang } = useTheme()
   const i18n = t(lang)
-  const TABS = [i18n.dashboard, i18n.myInvestments, i18n.marketplace, i18n.transactions, i18n.messages, i18n.referrals, 'Calendario', i18n.profile]
+  const TABS = [i18n.dashboard, i18n.myInvestments, i18n.marketplace, i18n.transactions, i18n.messages, i18n.referrals, 'Calendario', 'Asistente IA', i18n.profile]
   const [tab, setTab] = useState(i18n.dashboard)
   const [eventos, setEventos] = useState<EventoCalendario[]>([])
   const [chatToken2, setChatToken2] = useState('')
@@ -93,6 +93,14 @@ export default function DashboardPage() {
   const [showNotifs, setShowNotifs] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [showCalWidget, setShowCalWidget] = useState(false)
+  // Chat IA
+  type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito' }
+  const [iaMsgs, setIaMsgs] = useState<IaMsg[]>([])
+  const [iaInput, setIaInput] = useState('')
+  const [iaLoading, setIaLoading] = useState(false)
+  const [iaStream, setIaStream] = useState('')
+  const [iaUso, setIaUso] = useState<{ gasto: number; limite: number; periodo: string; modoGratuito: boolean } | null>(null)
+  const iaChatEndRef = useRef<HTMLDivElement>(null)
   const [expandedPart, setExpandedPart] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // Chat state
@@ -136,6 +144,7 @@ export default function DashboardPage() {
             }
             setChatToken(token)
             setChatToken2(token)
+            loadIaUso(token)
             // Load conversations
             fetch('/api/chat', { headers: { Authorization: `Bearer ${token}` } })
               .then(r => r.ok ? r.json() : [])
@@ -184,6 +193,7 @@ export default function DashboardPage() {
 
   // Scroll to bottom on new messages
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMsgs])
+  useEffect(() => { iaChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [iaMsgs, iaStream])
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -205,6 +215,53 @@ export default function DashboardPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/')
+  }
+
+  async function loadIaUso(token: string) {
+    const r = await fetch('/api/ia/uso', { headers: { Authorization: `Bearer ${token}` } })
+    if (r.ok) setIaUso(await r.json())
+  }
+
+  async function sendIa(text: string) {
+    if (!text.trim() || iaLoading) return
+    const newMsgs: IaMsg[] = [...iaMsgs, { role: 'user', content: text }]
+    setIaMsgs(newMsgs)
+    setIaInput('')
+    setIaLoading(true)
+    setIaStream('')
+
+    const res = await fetch('/api/ia/chat-cliente', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
+      body: JSON.stringify({ messages: newMsgs.map(m => ({ role: m.role, content: m.content })) }),
+    })
+
+    const reader = res.body?.getReader()
+    const decoder = new TextDecoder()
+    let full = ''
+    let esGratuito = false
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        for (const line of decoder.decode(value).split('\n')) {
+          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            try {
+              const parsed = JSON.parse(line.slice(6))
+              if (parsed.text) { full += parsed.text; setIaStream(s => s + parsed.text) }
+              if (parsed.modo === 'gratuito') esGratuito = true
+            } catch {}
+          }
+        }
+      }
+    }
+
+    setIaMsgs(m => [...m, { role: 'assistant', content: full, modo: esGratuito ? 'gratuito' : undefined }])
+    setIaStream('')
+    setIaLoading(false)
+    // Refrescar uso tras cada mensaje
+    if (chatToken2) loadIaUso(chatToken2)
   }
 
   const totalPortafolio = parts.filter(p => p.estado !== 'cancelada').reduce((s, p) => s + p.importe, 0)
@@ -886,6 +943,142 @@ export default function DashboardPage() {
     </div>
   )
 
+  // ── TAB ASISTENTE IA ─────────────────────────────────────────────
+  const SUGERENCIAS_IA = ['¿Cuál es el mínimo de inversión?', '¿Cómo funciona el crowdfunding?', '¿Qué documentos necesito?', '¿Cuánto cuesta la membresía?']
+  const TIPO_COLOR_IA: Record<string, string> = { npl: '#b87333', crowdfunding: '#C9A043', hipotecario: '#7c6fd4' }
+
+  const tabAsistenteIA = (
+    <div style={{ padding: '2rem 0', maxWidth: '760px' }}>
+      {/* Header + medidor de uso */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2 className="serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.5rem' }}>Asistente IA</h2>
+        <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Responde tus preguntas sobre inversiones, documentación y operaciones.</p>
+      </div>
+
+      {/* Medidor de uso */}
+      {iaUso && (
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Uso IA · {iaUso.periodo === 'dia' ? 'Hoy' : 'Esta semana'}
+              </span>
+              <span style={{ fontSize: '11px', color: iaUso.modoGratuito ? '#e05656' : '#6dc86d', fontWeight: 600 }}>
+                {iaUso.modoGratuito ? '⚡ Modo básico activo' : '✦ Premium activo'}
+              </span>
+            </div>
+            <div style={{ height: '5px', background: 'var(--bg-3)', borderRadius: '3px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: '3px', transition: 'width 0.5s',
+                width: `${Math.min((iaUso.gasto / iaUso.limite) * 100, 100)}%`,
+                background: iaUso.modoGratuito
+                  ? 'linear-gradient(90deg,#e05656,#c04040)'
+                  : 'linear-gradient(90deg,#C9A043,#a07828)',
+              }} />
+            </div>
+            <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--text-3)' }}>
+              {(iaUso.gasto * 100).toFixed(3)} ¢ de {(iaUso.limite * 100).toFixed(0)} ¢ usados
+              {' · '}{iaUso.modoGratuito
+                ? 'Se reinicia ' + (iaUso.periodo === 'dia' ? 'mañana' : 'el próximo lunes')
+                : 'Respuestas con IA avanzada'}
+            </div>
+          </div>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>✦</div>
+        </div>
+      )}
+
+      {/* Ventana de chat */}
+      <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        {/* Mensajes */}
+        <div style={{ minHeight: '360px', maxHeight: '480px', overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+
+          {/* Bienvenida */}
+          {iaMsgs.length === 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
+                <div style={{ maxWidth: '80%', padding: '0.75rem 1rem', borderRadius: '14px 14px 14px 2px', fontSize: '13px', lineHeight: 1.7, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)' }}>
+                  Hola, soy tu asistente de GrupoSkyLine. ¿En qué puedo ayudarte hoy?
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {SUGERENCIAS_IA.map(s => (
+                  <button key={s} onClick={() => sendIa(s)}
+                    style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '20px', border: '0.5px solid rgba(201,160,67,0.3)', background: 'rgba(201,160,67,0.06)', color: '#C9A043', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.14)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.06)')}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {iaMsgs.map((m, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '80%', padding: '0.75rem 1rem', fontSize: '13px', lineHeight: 1.7,
+                borderRadius: m.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                background: m.role === 'user' ? 'linear-gradient(135deg,#C9A043,#a07828)' : 'var(--bg-1)',
+                color: m.role === 'user' ? '#0a0a0a' : 'var(--text-1)',
+                border: m.role === 'assistant' ? '0.5px solid var(--gold-border)' : 'none',
+                fontWeight: m.role === 'user' ? 500 : 400,
+              }}>
+                {m.content}
+              </div>
+              {m.modo === 'gratuito' && (
+                <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px' }}>⚡ Modo básico</div>
+              )}
+            </div>
+          ))}
+
+          {iaLoading && iaStream && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ maxWidth: '80%', padding: '0.75rem 1rem', borderRadius: '14px 14px 14px 2px', fontSize: '13px', lineHeight: 1.7, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)' }}>
+                {iaStream}<span style={{ opacity: 0.4 }}>▌</span>
+              </div>
+            </div>
+          )}
+
+          {iaLoading && !iaStream && (
+            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+              <div style={{ padding: '0.75rem 1rem', borderRadius: '14px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  {[0, 1, 2].map(i => (
+                    <span key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A043', opacity: 0.6, animation: `dot 1.2s ${i * 0.2}s infinite`, display: 'inline-block' }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={iaChatEndRef} />
+        </div>
+
+        {/* Input */}
+        <form
+          onSubmit={e => { e.preventDefault(); sendIa(iaInput) }}
+          style={{ padding: '0.85rem', borderTop: '0.5px solid var(--gold-border)', display: 'flex', gap: '0.5rem' }}
+        >
+          <input
+            value={iaInput}
+            onChange={e => setIaInput(e.target.value)}
+            disabled={iaLoading}
+            placeholder="Escribe tu pregunta…"
+            style={{ flex: 1, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
+          />
+          <button
+            type="submit"
+            disabled={iaLoading || !iaInput.trim()}
+            style={{ background: 'linear-gradient(135deg,#C9A043,#a07828)', border: 'none', color: '#0a0a0a', width: '40px', height: '40px', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: 700, opacity: (iaLoading || !iaInput.trim()) ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >→</button>
+        </form>
+        <div style={{ padding: '0.4rem', textAlign: 'center', fontSize: '10px', color: 'rgba(255,255,255,0.15)' }}>
+          GrupoSkyLine IA · Powered by Claude
+        </div>
+      </div>
+    </div>
+  )
+
   const TAB_CONTENT: Record<string, React.ReactNode> = {
     'Dashboard': tabDashboard,
     'Mis Inversiones': tabInversiones,
@@ -894,6 +1087,7 @@ export default function DashboardPage() {
     'Mensajes': tabMensajes,
     'Referidos': tabReferidos,
     'Calendario': tabCalendario,
+    'Asistente IA': tabAsistenteIA,
     'Perfil': tabPerfil,
   }
 

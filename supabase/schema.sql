@@ -111,6 +111,19 @@ CREATE POLICY "movimiento_own" ON movimientos
 -- (RLS activo = ningún usuario autenticado puede leerla)
 
 -- 5. IA_DOCUMENTOS (base de conocimiento para el asistente)
+-- Ejecutar también:
+CREATE TABLE IF NOT EXISTS ia_uso_clientes (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  cliente_id    UUID REFERENCES clientes(id) ON DELETE CASCADE NOT NULL,
+  fecha         DATE NOT NULL,
+  tokens_entrada INTEGER DEFAULT 0,
+  tokens_salida  INTEGER DEFAULT 0,
+  coste_eur     NUMERIC(12,8) DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_ia_uso_cliente_fecha ON ia_uso_clientes(cliente_id, fecha);
+
+-- 6. IA_DOCUMENTOS
 CREATE TABLE IF NOT EXISTS ia_documentos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),
