@@ -32,8 +32,8 @@ const CITA_TOOL: Anthropic.Tool = {
     properties: {
       tipo: {
         type: 'string',
-        enum: ['llamada', 'presencial'],
-        description: 'Tipo de reunión: "llamada" telefónica o videollamada, "presencial" para visita en oficina',
+        enum: ['llamada'],
+        description: 'Tipo de contacto: llamada telefónica o videollamada con el equipo de GrupoSkyLine',
       },
       fecha_propuesta: {
         type: 'string',
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
       const toolBlock = response.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
       if (toolBlock?.name === 'solicitar_cita') {
         const input = toolBlock.input as {
-          tipo: 'llamada' | 'presencial'
+          tipo: 'llamada'
           fecha_propuesta?: string
           hora_propuesta?: string
           mensaje: string

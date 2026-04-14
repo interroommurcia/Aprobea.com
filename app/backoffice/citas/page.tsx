@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 type Cita = {
   id: string
   created_at: string
-  tipo: 'llamada' | 'presencial'
+  tipo: 'llamada'
   fecha_propuesta: string | null
   hora_propuesta: string | null
   mensaje: string
@@ -80,7 +80,7 @@ export default function CitasPage() {
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.5rem' }}>Agenda</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)' }}>Solicitudes de Cita</h1>
+          <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)' }}>Solicitudes de Llamada</h1>
           {pendientes > 0 && (
             <span style={{ background: '#C9A043', color: '#0a0a0a', borderRadius: '20px', padding: '3px 10px', fontSize: '11px', fontWeight: 700 }}>
               {pendientes} nueva{pendientes > 1 ? 's' : ''}
@@ -115,7 +115,7 @@ export default function CitasPage() {
               <div key={cita.id} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.25rem 1.5rem', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
                 {/* Icono tipo */}
                 <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
-                  {cita.tipo === 'llamada' ? '📞' : '🤝'}
+                  📞
                 </div>
 
                 {/* Info */}
@@ -126,7 +126,7 @@ export default function CitasPage() {
                         {cliente ? `${cliente.nombre} ${cliente.apellidos}` : 'Cliente'}
                       </span>
                       <span style={{ fontSize: '11px', color: 'var(--text-3)', marginLeft: '8px' }}>
-                        {cita.tipo === 'llamada' ? 'Llamada' : 'Cita presencial'}
+                        Llamada telefónica
                       </span>
                     </div>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: est.color, background: est.bg, padding: '3px 10px', borderRadius: '20px' }}>
@@ -188,7 +188,7 @@ export default function CitasPage() {
               {accion === 'confirmar' ? '✓ Confirmar cita' : accion === 'reprogramar' ? '📅 Proponer nuevo horario' : '✕ Denegar solicitud'}
             </h3>
             <p style={{ fontSize: '12px', color: 'var(--text-3)', marginBottom: '1.5rem' }}>
-              {modal.clientes?.nombre} {modal.clientes?.apellidos} · {modal.tipo}
+              {modal.clientes?.nombre} {modal.clientes?.apellidos} · Llamada telefónica
             </p>
 
             {accion !== 'denegar' && (

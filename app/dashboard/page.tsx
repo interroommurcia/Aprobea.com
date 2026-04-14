@@ -1033,7 +1033,7 @@ export default function DashboardPage() {
               )}
               {m.cita && (
                 <div style={{ marginTop: '8px', background: 'rgba(109,200,109,0.08)', border: '0.5px solid rgba(109,200,109,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#6dc86d', maxWidth: '80%' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✓ Solicitud de {m.cita.tipo} enviada</div>
+                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✓ Solicitud de llamada enviada</div>
                   <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>
                     {m.cita.fecha ? `📅 ${new Date(m.cita.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
                     {m.cita.hora ? ` · ${m.cita.hora}` : ''}
