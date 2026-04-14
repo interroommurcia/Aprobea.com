@@ -96,6 +96,9 @@ export default function DashboardPage() {
   // Chat IA
   type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito'; cita?: { tipo: string; fecha?: string; hora?: string } }
   type CitaSolicitud = { id: string; tipo: string; estado: string; fecha_propuesta: string | null; hora_propuesta: string | null; fecha_confirmada: string | null; hora_confirmada: string | null; mensaje: string; nota_admin: string | null; created_at: string }
+  type IaConv = { id: string; titulo: string; created_at: string; updated_at: string; mensajes: IaMsg[] }
+  const [iaConvs, setIaConvs] = useState<IaConv[]>([])
+  const [iaConvActiva, setIaConvActiva] = useState<IaConv | null>(null)
   const [iaMsgs, setIaMsgs] = useState<IaMsg[]>([])
   const [iaInput, setIaInput] = useState('')
   const [iaLoading, setIaLoading] = useState(false)
@@ -147,6 +150,16 @@ export default function DashboardPage() {
             setChatToken(token)
             setChatToken2(token)
             loadIaUso(token)
+            // Cargar conversaciones IA
+            fetch('/api/ia/conversaciones', { headers: { Authorization: `Bearer ${token}` } })
+              .then(r => r.ok ? r.json() : [])
+              .then((convs: IaConv[]) => {
+                if (Array.isArray(convs) && convs.length > 0) {
+                  setIaConvs(convs)
+                  setIaConvActiva(convs[0])
+                  setIaMsgs(Array.isArray(convs[0].mensajes) ? convs[0].mensajes : [])
+                }
+              })
             // Cargar citas del cliente
             fetch('/api/citas', { headers: { Authorization: `Bearer ${token}` } })
               .then(r => r.ok ? r.json() : [])
@@ -228,8 +241,63 @@ export default function DashboardPage() {
     if (r.ok) setIaUso(await r.json())
   }
 
+  // ── Helpers de conversaciones IA ────────────────────────────
+  async function iaGuardar(convId: string, msgs: IaMsg[]) {
+    if (!chatToken2 || !convId) return
+    await fetch('/api/ia/conversaciones', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
+      body: JSON.stringify({ id: convId, mensajes: msgs }),
+    })
+    setIaConvs(prev => prev.map(c => c.id === convId ? { ...c, mensajes: msgs, updated_at: new Date().toISOString(), titulo: msgs.find(m => m.role === 'user')?.content?.slice(0, 45) ?? c.titulo } : c))
+  }
+
+  async function iaNuevaConv() {
+    if (!chatToken2) return
+    const res = await fetch('/api/ia/conversaciones', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${chatToken2}` },
+    })
+    if (res.status === 409) { alert('Límite de 3 conversaciones alcanzado. Borra una para continuar.'); return }
+    const conv = await res.json()
+    setIaConvs(prev => [conv, ...prev])
+    setIaConvActiva(conv)
+    setIaMsgs([])
+  }
+
+  async function iaEliminarConv(id: string) {
+    if (!chatToken2) return
+    await fetch('/api/ia/conversaciones', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
+      body: JSON.stringify({ id }),
+    })
+    const nuevas = iaConvs.filter(c => c.id !== id)
+    setIaConvs(nuevas)
+    if (iaConvActiva?.id === id) {
+      setIaConvActiva(nuevas[0] ?? null)
+      setIaMsgs(nuevas[0]?.mensajes ?? [])
+    }
+  }
+
   async function sendIa(text: string) {
     if (!text.trim() || iaLoading) return
+
+    // Si no hay conversación activa, crear una
+    let convId = iaConvActiva?.id
+    if (!convId) {
+      if (iaConvs.length >= 3) { alert('Límite de 3 conversaciones. Borra una para continuar.'); return }
+      const res = await fetch('/api/ia/conversaciones', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${chatToken2}` },
+      })
+      if (!res.ok) { alert('No se pudo crear la conversación.'); return }
+      const conv = await res.json()
+      setIaConvs(prev => [conv, ...prev])
+      setIaConvActiva(conv)
+      convId = conv.id
+    }
+
     const newMsgs: IaMsg[] = [...iaMsgs, { role: 'user', content: text }]
     setIaMsgs(newMsgs)
     setIaInput('')
@@ -266,10 +334,13 @@ export default function DashboardPage() {
       }
     }
 
-    setIaMsgs(m => [...m, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined, cita: citaCreada }])
+    const finalMsgs: IaMsg[] = [...newMsgs, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined, cita: citaCreada }]
+    setIaMsgs(finalMsgs)
     setIaStream('')
     setIaLoading(false)
-    // Refrescar uso tras cada mensaje
+    // Guardar en DB
+    if (convId) iaGuardar(convId, finalMsgs)
+    // Refrescar uso
     if (chatToken2) loadIaUso(chatToken2)
   }
 
@@ -957,12 +1028,58 @@ export default function DashboardPage() {
   const TIPO_COLOR_IA: Record<string, string> = { npl: '#b87333', crowdfunding: '#C9A043', hipotecario: '#7c6fd4' }
 
   const tabAsistenteIA = (
-    <div style={{ padding: '2rem 0', maxWidth: '760px' }}>
-      {/* Header + medidor de uso */}
+    <div style={{ padding: '2rem 0' }}>
+      {/* Header */}
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 className="serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.5rem' }}>Asistente IA</h2>
         <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Responde tus preguntas sobre inversiones, documentación y operaciones.</p>
       </div>
+
+    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
+
+      {/* ── PANEL LATERAL: conversaciones ── */}
+      <div style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          onClick={iaNuevaConv}
+          disabled={iaConvs.length >= 3}
+          style={{ width: '100%', padding: '9px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: iaConvs.length >= 3 ? 'not-allowed' : 'pointer', background: iaConvs.length >= 3 ? 'rgba(201,160,67,0.08)' : 'var(--gold-200)', color: iaConvs.length >= 3 ? 'var(--text-3)' : '#0a0a0a', border: '0.5px solid var(--gold-border)', transition: 'all 0.15s' }}
+        >
+          + Nueva {iaConvs.length >= 3 ? '(máx. 3)' : `(${3 - iaConvs.length} restante${3 - iaConvs.length !== 1 ? 's' : ''})`}
+        </button>
+
+        {iaConvs.length === 0 && (
+          <div style={{ fontSize: '11px', color: 'var(--text-3)', textAlign: 'center', padding: '1rem 0' }}>
+            Sin conversaciones aún
+          </div>
+        )}
+
+        {iaConvs.map(conv => {
+          const activa = iaConvActiva?.id === conv.id
+          return (
+            <div
+              key={conv.id}
+              onClick={() => { setIaConvActiva(conv); setIaMsgs(Array.isArray(conv.mensajes) ? conv.mensajes : []) }}
+              style={{ borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', background: activa ? 'rgba(201,160,67,0.1)' : 'var(--bg-2)', border: `0.5px solid ${activa ? 'rgba(201,160,67,0.45)' : 'var(--gold-border)'}`, transition: 'all 0.15s', position: 'relative' }}
+            >
+              <div style={{ fontSize: '12px', fontWeight: 500, color: activa ? 'var(--gold-100)' : 'var(--text-1)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '18px' }}>
+                {conv.titulo}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>
+                {new Date(conv.updated_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                {' · '}{Array.isArray(conv.mensajes) ? Math.floor(conv.mensajes.length / 2) : 0} mens.
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar esta conversación?')) iaEliminarConv(conv.id) }}
+                style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', lineHeight: 1, padding: '2px' }}
+                title="Eliminar"
+              >×</button>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ── ÁREA DE CHAT ── */}
+      <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* Medidor de uso */}
       {iaUso && (
@@ -1137,6 +1254,8 @@ export default function DashboardPage() {
           GrupoSkyLine IA · Powered by Claude
         </div>
       </div>
+      </div> {/* flex área chat */}
+    </div> {/* flex panel+chat */}
     </div>
   )
 
