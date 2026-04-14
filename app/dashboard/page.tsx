@@ -249,6 +249,7 @@ export default function DashboardPage() {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
               const parsed = JSON.parse(line.slice(6))
+              if (parsed.error) { full = `⚠️ ${parsed.error}`; setIaStream(full) }
               if (parsed.text) { full += parsed.text; setIaStream(s => s + parsed.text) }
               if (parsed.modo === 'gratuito') esGratuito = true
             } catch {}
@@ -257,7 +258,7 @@ export default function DashboardPage() {
       }
     }
 
-    setIaMsgs(m => [...m, { role: 'assistant', content: full, modo: esGratuito ? 'gratuito' : undefined }])
+    setIaMsgs(m => [...m, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined }])
     setIaStream('')
     setIaLoading(false)
     // Refrescar uso tras cada mensaje
