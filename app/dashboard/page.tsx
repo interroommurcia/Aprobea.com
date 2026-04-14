@@ -91,6 +91,8 @@ export default function DashboardPage() {
   const [codigoRef, setCodigoRef] = useState<CodigoReferido | null>(null)
   const [referidos, setReferidos] = useState<Referido[]>([])
   const [showNotifs, setShowNotifs] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+  const [showCalWidget, setShowCalWidget] = useState(false)
   const [expandedPart, setExpandedPart] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   // Chat state
@@ -105,6 +107,8 @@ export default function DashboardPage() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatFileRef = useRef<HTMLInputElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
+  const profileRef = useRef<HTMLDivElement>(null)
+  const calWidgetRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -184,6 +188,8 @@ export default function DashboardPage() {
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) setShowNotifs(false)
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setShowProfile(false)
+      if (calWidgetRef.current && !calWidgetRef.current.contains(e.target as Node)) setShowCalWidget(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
@@ -960,14 +966,122 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Avatar */}
-            <button
-              onClick={handleLogout}
-              title="Cerrar sesión"
-              style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,160,67,0.3) 0%, rgba(201,160,67,0.1) 100%)', border: '0.5px solid rgba(201,160,67,0.4)', color: 'var(--gold-100)', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.04em' }}
-            >
-              {initials}
-            </button>
+            {/* ── CALENDARIO WIDGET ── */}
+            <div ref={calWidgetRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setShowCalWidget(v => !v); setShowProfile(false); setShowNotifs(false) }}
+                title="Próximos eventos"
+                style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'border-color 0.2s' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showCalWidget ? 'var(--gold-200)' : 'var(--text-2)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                {(() => {
+                  const hoy = new Date().toISOString().slice(0, 10)
+                  const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+                  const cnt = eventos.filter(ev => ev.fecha >= hoy && ev.fecha <= en7).length
+                  return cnt > 0 ? <span style={{ position: 'absolute', top: '5px', right: '5px', width: '8px', height: '8px', background: '#C9A043', borderRadius: '50%', fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a', fontWeight: 700 }} /> : null
+                })()}
+              </button>
+
+              {showCalWidget && (() => {
+                const hoy = new Date().toISOString().slice(0, 10)
+                const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+                const proximos = eventos.filter(ev => ev.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 5)
+                const TIPO_COLOR: Record<string, string> = { manual: '#C9A043', operacion: '#7c6fd4', vencimiento: '#e05656', pago: '#6dc86d', recordatorio: '#4da6d4' }
+                return (
+                  <div style={{ position: 'absolute', right: 0, top: '48px', width: '300px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.55)', zIndex: 200, overflow: 'hidden' }}>
+                    {/* Header */}
+                    <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Próximos eventos</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)' }}>
+                          {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                        </div>
+                      </div>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold-200)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Eventos */}
+                    <div style={{ padding: '0.5rem 0' }}>
+                      {proximos.length === 0 ? (
+                        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-3)', fontSize: '12px' }}>Sin eventos próximos</div>
+                      ) : proximos.map(ev => {
+                        const fecha = new Date(ev.fecha + 'T00:00:00')
+                        const esHoy = ev.fecha === hoy
+                        const diff = Math.round((fecha.getTime() - new Date().setHours(0,0,0,0)) / 86400000)
+                        return (
+                          <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.6rem 1.25rem', borderBottom: '0.5px solid rgba(201,160,67,0.06)' }}>
+                            <div style={{ width: '3px', height: '36px', borderRadius: '2px', background: TIPO_COLOR[ev.tipo] ?? '#C9A043', flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.titulo}</div>
+                              <div style={{ fontSize: '10px', color: esHoy ? '#C9A043' : 'var(--text-3)', marginTop: '1px' }}>
+                                {esHoy ? 'Hoy' : diff === 1 ? 'Mañana' : `En ${diff} días`} · {fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Footer — ir al calendario */}
+                    <button
+                      onClick={() => { setTab('Calendario'); setShowCalWidget(false) }}
+                      style={{ width: '100%', padding: '0.85rem', background: 'rgba(201,160,67,0.05)', border: 'none', borderTop: '0.5px solid var(--gold-border)', color: 'var(--gold-200)', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    >
+                      Ver calendario completo →
+                    </button>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* ── AVATAR DROPDOWN ── */}
+            <div ref={profileRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => { setShowProfile(v => !v); setShowNotifs(false); setShowCalWidget(false) }}
+                style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,160,67,0.3) 0%, rgba(201,160,67,0.1) 100%)', border: showProfile ? '0.5px solid rgba(201,160,67,0.8)' : '0.5px solid rgba(201,160,67,0.4)', color: 'var(--gold-100)', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.04em', transition: 'border-color 0.2s' }}
+              >
+                {initials}
+              </button>
+
+              {showProfile && (
+                <div style={{ position: 'absolute', right: 0, top: '48px', width: '200px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.55)', zIndex: 200, overflow: 'hidden' }}>
+                  {/* User info */}
+                  <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,160,67,0.3), rgba(201,160,67,0.1))', border: '0.5px solid rgba(201,160,67,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-100)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{initials}</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)' }}>{cliente?.nombre} {cliente?.apellidos}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cliente?.email}</div>
+                  </div>
+                  {/* Options */}
+                  <div style={{ padding: '0.4rem 0' }}>
+                    <button
+                      onClick={() => { setTab(i18n.profile); setShowProfile(false) }}
+                      style={{ width: '100%', padding: '0.65rem 1.25rem', background: 'none', border: 'none', color: 'var(--text-1)', fontSize: '13px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.06)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                      Mi perfil
+                    </button>
+                    <div style={{ margin: '0.3rem 1rem', height: '0.5px', background: 'var(--gold-border)' }} />
+                    <button
+                      onClick={() => { setShowProfile(false); handleLogout() }}
+                      style={{ width: '100%', padding: '0.65rem 1.25rem', background: 'none', border: 'none', color: '#e05656', fontSize: '13px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,86,86,0.06)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      Cerrar sesión
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </nav>
