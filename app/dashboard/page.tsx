@@ -10,6 +10,7 @@ import { t } from '@/lib/i18n'
 import { downloadCSV, downloadExcel } from '@/lib/export'
 import TicketProgress from '@/components/TicketProgress'
 import MarketplaceCard from '@/components/MarketplaceCard'
+import Calendario, { EventoCalendario } from '@/components/Calendario'
 
 type Movimiento = { id: string; tipo: string; importe: number; fecha: string; descripcion: string }
 type Participacion = {
@@ -78,8 +79,10 @@ function PropertyIcon({ tipo }: { tipo: string }) {
 export default function DashboardPage() {
   const { lang } = useTheme()
   const i18n = t(lang)
-  const TABS = [i18n.dashboard, i18n.myInvestments, i18n.marketplace, i18n.transactions, i18n.messages, i18n.referrals, i18n.profile]
+  const TABS = [i18n.dashboard, i18n.myInvestments, i18n.marketplace, i18n.transactions, i18n.messages, i18n.referrals, 'Calendario', i18n.profile]
   const [tab, setTab] = useState(i18n.dashboard)
+  const [eventos, setEventos] = useState<EventoCalendario[]>([])
+  const [chatToken2, setChatToken2] = useState('')
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [parts, setParts] = useState<Participacion[]>([])
   const [notifs, setNotifs] = useState<Notificacion[]>([])
@@ -128,10 +131,27 @@ export default function DashboardPage() {
               setReferidos(Array.isArray(refData.referidos) ? refData.referidos : [])
             }
             setChatToken(token)
+            setChatToken2(token)
             // Load conversations
             fetch('/api/chat', { headers: { Authorization: `Bearer ${token}` } })
               .then(r => r.ok ? r.json() : [])
               .then(d => setConvs(Array.isArray(d) ? d : []))
+            // Load calendario + auto-eventos de vencimientos
+            fetch('/api/calendario', { headers: { Authorization: `Bearer ${token}` } })
+              .then(r => r.ok ? r.json() : [])
+              .then((evs: EventoCalendario[]) => {
+                // Añadir eventos automáticos de vencimientos desde participaciones
+                const autoEvs: EventoCalendario[] = (Array.isArray(ps) ? ps as any[] : [])
+                  .filter((p: any) => p.fecha_vencimiento)
+                  .map((p: any) => ({
+                    id: `auto-venc-${p.id}`,
+                    titulo: `Vencimiento: ${p.nombre_operacion}`,
+                    descripcion: `Importe: ${p.importe.toLocaleString('es-ES')}€ · Rentabilidad: ${p.rentabilidad_anual}%`,
+                    fecha: p.fecha_vencimiento.slice(0, 10),
+                    tipo: 'vencimiento' as const,
+                  }))
+                setEventos([...(Array.isArray(evs) ? evs : []), ...autoEvs])
+              })
             setLoading(false)
           })
         })
@@ -834,6 +854,32 @@ export default function DashboardPage() {
     </div>
   )
 
+  const tabCalendario = (
+    <div style={{ padding: '2rem 0' }}>
+      <Calendario
+        eventos={eventos}
+        onAddEvento={async (ev) => {
+          const res = await fetch('/api/calendario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
+            body: JSON.stringify(ev),
+          })
+          const nuevo = await res.json()
+          if (nuevo.id) setEventos(prev => [...prev, nuevo])
+        }}
+        onDeleteEvento={async (id) => {
+          await fetch('/api/calendario', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
+            body: JSON.stringify({ id }),
+          })
+          setEventos(prev => prev.filter(e => e.id !== id))
+        }}
+        clienteId={cliente.id}
+      />
+    </div>
+  )
+
   const TAB_CONTENT: Record<string, React.ReactNode> = {
     'Dashboard': tabDashboard,
     'Mis Inversiones': tabInversiones,
@@ -841,6 +887,7 @@ export default function DashboardPage() {
     'Transacciones': tabTransacciones,
     'Mensajes': tabMensajes,
     'Referidos': tabReferidos,
+    'Calendario': tabCalendario,
     'Perfil': tabPerfil,
   }
 

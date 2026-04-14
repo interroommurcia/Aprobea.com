@@ -417,7 +417,7 @@ export default function Home() {
               Desde 1.000€ participa en operaciones inmobiliarias seleccionadas con retornos atractivos. Democratizamos el acceso a la inversión de alto nivel sin grandes barreras de capital.
             </p>
             <div className="service-tags">
-              <span className="tag" data-es="Desde 1.000€" data-en="From €1,000">Desde 1.000€</span>
+              <span className="tag" data-es="Desde 5.000€" data-en="From €5,000">Desde 5.000€</span>
               <span className="tag" data-es="Operaciones seleccionadas" data-en="Curated deals">Operaciones seleccionadas</span>
               <span className="tag" data-es="Alta rentabilidad" data-en="High yield">Alta rentabilidad</span>
             </div>
@@ -555,10 +555,10 @@ export default function Home() {
             <span className="reg-badge" data-es="Inversor NPL · Premium" data-en="NPL · Premium Investor">Inversor NPL · Premium</span>
             <h3 className="reg-title serif" data-es="Cuenta Inversor Premium" data-en="Premium Investor Account">Cuenta Inversor Premium</h3>
             <p className="reg-desc"
-              data-es="Para inversores con capital desde 50.000€ buscando exposición a activos NPL y carteras de deuda de alto rendimiento."
-              data-en="For investors with capital from €50,000 seeking exposure to NPL assets and high-yield debt portfolios."
+              data-es="Para inversores con capital desde 80.000€ buscando exposición a activos NPL y carteras de deuda de alto rendimiento."
+              data-en="For investors with capital from €80,000 seeking exposure to NPL assets and high-yield debt portfolios."
             >
-              Para inversores con capital desde 50.000€ buscando exposición a activos NPL y carteras de deuda de alto rendimiento.
+              Para inversores con capital desde 80.000€ buscando exposición a activos NPL y carteras de deuda de alto rendimiento.
             </p>
             {/* Sin cuota de membresía para NPL */}
             <div style={{
@@ -579,19 +579,20 @@ export default function Home() {
               <li data-es="Subida y firma de documentos" data-en="Document upload & signing">Subida y firma de documentos</li>
               <li data-es="Reportes de rendimiento en tiempo real" data-en="Real-time performance reports">Reportes de rendimiento en tiempo real</li>
               <li data-es="Due diligence compartida" data-en="Shared due diligence">Due diligence compartida</li>
+              <li data-es="Justificante de previsión de fondos requerido" data-en="Proof of funds forecast required">Justificante de previsión de fondos requerido</li>
             </ul>
             <button className="btn-register btn-register-gold" onClick={() => setOpenModal('npl')} data-es="Crear cuenta Inversor" data-en="Create Investor Account">
               Crear cuenta Inversor
             </button>
           </div>
           <div className="register-card reveal">
-            <span className="reg-badge" data-es="Crowdfunding · Desde 1.000€" data-en="Crowdfunding · From €1,000">Crowdfunding · Desde 1.000€</span>
+            <span className="reg-badge" data-es="Crowdfunding · Desde 5.000€" data-en="Crowdfunding · From €5,000">Crowdfunding · Desde 5.000€</span>
             <h3 className="reg-title serif" data-es="Cuenta Crowdfunding" data-en="Crowdfunding Account">Cuenta Crowdfunding</h3>
             <p className="reg-desc"
-              data-es="Invierte en inmuebles seleccionados desde cualquier capital. Diversifica sin barreras de entrada."
-              data-en="Invest in curated properties from any capital. Diversify without entry barriers."
+              data-es="Invierte en inmuebles seleccionados desde 5.000€. Diversifica con retornos atractivos sin grandes barreras de capital."
+              data-en="Invest in curated properties from €5,000. Diversify with attractive returns and low capital barriers."
             >
-              Invierte en inmuebles seleccionados desde cualquier capital. Diversifica sin barreras de entrada.
+              Invierte en inmuebles seleccionados desde 5.000€. Diversifica con retornos atractivos sin grandes barreras de capital.
             </p>
 
             {/* Precio membresía bien visible */}

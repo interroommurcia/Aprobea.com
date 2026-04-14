@@ -26,6 +26,22 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS stripe_customer_id            TEXT
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS stripe_subscription_id        TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS suscripcion_activa            BOOLEAN DEFAULT FALSE;
 
+-- 1c. Tabla de eventos del calendario
+CREATE TABLE IF NOT EXISTS eventos_calendario (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  cliente_id  UUID REFERENCES clientes(id) ON DELETE CASCADE,
+  user_id     UUID,
+  titulo      TEXT NOT NULL,
+  descripcion TEXT,
+  fecha       DATE NOT NULL,
+  hora        TEXT,
+  tipo        TEXT CHECK (tipo IN ('manual','operacion','vencimiento','pago','recordatorio')) DEFAULT 'manual',
+  color       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_eventos_cliente ON eventos_calendario(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_eventos_fecha ON eventos_calendario(fecha);
+
 -- 2. PARTICIPACIONES (cuenta de participaciones)
 CREATE TABLE IF NOT EXISTS participaciones (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
