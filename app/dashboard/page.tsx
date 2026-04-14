@@ -1341,6 +1341,65 @@ export default function DashboardPage() {
         </div>
       </nav>
 
+      {/* ── BANNERS DE RECORDATORIO ── */}
+      {(() => {
+        const hoy = new Date().toISOString().slice(0, 10)
+        const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
+        const citasReprog = misCitas.filter(c => c.estado === 'reprogramada')
+        const eventosProximos = eventos.filter(ev =>
+          ev.tipo === 'recordatorio' && ev.fecha >= hoy && ev.fecha <= en7
+        ).sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+        if (!citasReprog.length && !eventosProximos.length) return null
+
+        return (
+          <div style={{ borderBottom: '0.5px solid rgba(201,160,67,0.12)', background: 'var(--bg-1)' }}>
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
+              {/* Llamadas confirmadas próximas */}
+              {eventosProximos.map(ev => {
+                const fecha = new Date(ev.fecha + 'T00:00:00')
+                const diff = Math.round((fecha.getTime() - new Date().setHours(0,0,0,0)) / 86400000)
+                const cuandoStr = diff === 0 ? 'hoy' : diff === 1 ? 'mañana' : `el ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}`
+                return (
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0', borderBottom: '0.5px solid rgba(77,166,212,0.08)' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(77,166,212,0.12)', border: '0.5px solid rgba(77,166,212,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>📞</div>
+                    <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--text-1)' }}>
+                      <span style={{ color: '#4da6d4', fontWeight: 600 }}>Llamada confirmada</span>
+                      {' — '}tienes una llamada con el equipo de GrupoSkyLine <strong>{cuandoStr}</strong>
+                      {(ev as any).hora ? ` a las ${(ev as any).hora}` : ''}
+                    </div>
+                    <button
+                      onClick={() => setTab('Calendario')}
+                      style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: 'rgba(77,166,212,0.1)', border: '0.5px solid rgba(77,166,212,0.35)', color: '#4da6d4' }}
+                    >
+                      Ver calendario →
+                    </button>
+                  </div>
+                )
+              })}
+              {/* Citas pendientes de confirmar */}
+              {citasReprog.map(cita => (
+                <div key={cita.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(201,160,67,0.12)', border: '0.5px solid rgba(201,160,67,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>📅</div>
+                  <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--text-1)' }}>
+                    <span style={{ color: '#C9A043', fontWeight: 600 }}>Nueva propuesta de horario</span>
+                    {' — '}el equipo te propone una llamada
+                    {cita.fecha_confirmada ? ` el ${new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}` : ''}
+                    . Confírmala o recházala.
+                  </div>
+                  <button
+                    onClick={() => setTab('Asistente IA')}
+                    style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: 'rgba(201,160,67,0.1)', border: '0.5px solid rgba(201,160,67,0.35)', color: '#C9A043' }}
+                  >
+                    Confirmar →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2.5rem 2rem' }}>
         {TAB_CONTENT[tab]}
