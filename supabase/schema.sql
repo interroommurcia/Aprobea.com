@@ -123,7 +123,25 @@ CREATE TABLE IF NOT EXISTS ia_uso_clientes (
 );
 CREATE INDEX IF NOT EXISTS idx_ia_uso_cliente_fecha ON ia_uso_clientes(cliente_id, fecha);
 
--- 6. IA_DOCUMENTOS
+-- 7. CITAS_SOLICITUDES (solicitudes de llamada/cita presencial desde la IA)
+CREATE TABLE IF NOT EXISTS citas_solicitudes (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at       TIMESTAMPTZ DEFAULT now(),
+  updated_at       TIMESTAMPTZ DEFAULT now(),
+  cliente_id       UUID REFERENCES clientes(id) ON DELETE CASCADE NOT NULL,
+  tipo             TEXT CHECK (tipo IN ('llamada','presencial')) DEFAULT 'llamada',
+  fecha_propuesta  DATE,
+  hora_propuesta   TEXT,
+  mensaje          TEXT NOT NULL,
+  estado           TEXT CHECK (estado IN ('pendiente','confirmada','denegada','reprogramada')) DEFAULT 'pendiente',
+  fecha_confirmada DATE,
+  hora_confirmada  TEXT,
+  nota_admin       TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_citas_cliente ON citas_solicitudes(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_citas_estado  ON citas_solicitudes(estado);
+
+-- 8. IA_DOCUMENTOS
 CREATE TABLE IF NOT EXISTS ia_documentos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT now(),

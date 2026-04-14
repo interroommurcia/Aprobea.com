@@ -42,6 +42,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     { href: '/backoffice/rent-to-rent', label: 'Rent to Rent', icon: '🏠' },
     { href: '/backoffice/referidos', label: 'Referidos', icon: '🔗' },
     { href: '/backoffice/calendario', label: 'Calendario', icon: '📅' },
+    { href: '/backoffice/citas', label: 'Citas', icon: '📞' },
     { href: '/backoffice/ia', label: 'IA Asistente', icon: '🤖' },
     { href: '/backoffice/pagos', label: 'Pagos', icon: '💳' },
     { href: '/backoffice/configuracion', label: 'Configuración', icon: '⚙' },

@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const [showProfile, setShowProfile] = useState(false)
   const [showCalWidget, setShowCalWidget] = useState(false)
   // Chat IA
-  type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito' }
+  type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito'; cita?: { tipo: string; fecha?: string; hora?: string } }
   const [iaMsgs, setIaMsgs] = useState<IaMsg[]>([])
   const [iaInput, setIaInput] = useState('')
   const [iaLoading, setIaLoading] = useState(false)
@@ -240,6 +240,7 @@ export default function DashboardPage() {
     const decoder = new TextDecoder()
     let full = ''
     let esGratuito = false
+    let citaCreada: { tipo: string; fecha?: string; hora?: string } | undefined
 
     if (reader) {
       while (true) {
@@ -252,13 +253,14 @@ export default function DashboardPage() {
               if (parsed.error) { full = `⚠️ ${parsed.error}`; setIaStream(full) }
               if (parsed.text) { full += parsed.text; setIaStream(s => s + parsed.text) }
               if (parsed.modo === 'gratuito') esGratuito = true
+              if (parsed.cita_creada) citaCreada = { tipo: parsed.tipo, fecha: parsed.fecha, hora: parsed.hora }
             } catch {}
           }
         }
       }
     }
 
-    setIaMsgs(m => [...m, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined }])
+    setIaMsgs(m => [...m, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined, cita: citaCreada }])
     setIaStream('')
     setIaLoading(false)
     // Refrescar uso tras cada mensaje
@@ -1028,6 +1030,16 @@ export default function DashboardPage() {
               </div>
               {m.modo === 'gratuito' && (
                 <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px' }}>⚡ Modo básico</div>
+              )}
+              {m.cita && (
+                <div style={{ marginTop: '8px', background: 'rgba(109,200,109,0.08)', border: '0.5px solid rgba(109,200,109,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#6dc86d', maxWidth: '80%' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✓ Solicitud de {m.cita.tipo} enviada</div>
+                  <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>
+                    {m.cita.fecha ? `📅 ${new Date(m.cita.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
+                    {m.cita.hora ? ` · ${m.cita.hora}` : ''}
+                    {!m.cita.fecha ? 'Recibirás una notificación cuando el equipo confirme la cita.' : ' · Te notificaremos la confirmación.'}
+                  </div>
+                </div>
               )}
             </div>
           ))}
