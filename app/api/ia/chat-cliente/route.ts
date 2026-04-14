@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
           mensaje: string
         }
 
-        // Crear solicitud en DB
+        // Crear solicitud en DB — guardar historial de conversación
         const { data: cita } = await supabaseAdmin.from('citas_solicitudes').insert({
           cliente_id: cliente.id,
           tipo: input.tipo,
@@ -186,6 +186,7 @@ export async function POST(req: NextRequest) {
           hora_propuesta: input.hora_propuesta ?? null,
           mensaje: input.mensaje,
           estado: 'pendiente',
+          conversacion_ia: messages.slice(-20), // últimos 20 mensajes de contexto
         }).select().single()
 
         // Llamada adicional para obtener respuesta natural de confirmación

@@ -13,6 +13,7 @@ type Cita = {
   fecha_confirmada: string | null
   hora_confirmada: string | null
   nota_admin: string | null
+  conversacion_ia: { role: string; content: string }[] | null
   clientes: {
     id: string
     nombre: string
@@ -24,6 +25,41 @@ type Cita = {
     estado: string
     created_at: string
   } | null
+}
+
+function ConversacionIA({ mensajes }: { mensajes: { role: string; content: string }[] }) {
+  const [open, setOpen] = useState(false)
+  const visibles = mensajes.filter(m => m.content && typeof m.content === 'string')
+  if (visibles.length === 0) return null
+  return (
+    <div style={{ marginBottom: '10px' }}>
+      <button onClick={() => setOpen(v => !v)}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--gold-200)', display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 0' }}>
+        <span style={{ fontSize: '12px' }}>{open ? '▾' : '▸'}</span>
+        {open ? 'Ocultar' : 'Ver'} conversación con la IA ({visibles.length} mensajes)
+      </button>
+      {open && (
+        <div style={{ marginTop: '6px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '10px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '260px', overflowY: 'auto' }}>
+          {visibles.map((m, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '85%', padding: '6px 10px', borderRadius: m.role === 'user' ? '10px 10px 2px 10px' : '10px 10px 10px 2px',
+                fontSize: '11px', lineHeight: 1.5,
+                background: m.role === 'user' ? 'rgba(201,160,67,0.15)' : 'rgba(255,255,255,0.04)',
+                color: m.role === 'user' ? '#C9A043' : 'var(--text-2)',
+                border: m.role === 'assistant' ? '0.5px solid rgba(201,160,67,0.1)' : 'none',
+              }}>
+                <span style={{ fontSize: '9px', opacity: 0.5, display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {m.role === 'user' ? 'Cliente' : 'IA'}
+                </span>
+                {m.content}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const ESTADO_STYLE: Record<string, { color: string; bg: string; label: string }> = {
@@ -152,6 +188,11 @@ export default function CitasPage() {
                     <span style={{ fontSize: '10px', color: 'var(--text-3)', display: 'block', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Motivo</span>
                     {cita.mensaje}
                   </div>
+
+                  {/* Conversación IA previa */}
+                  {cita.conversacion_ia && cita.conversacion_ia.length > 0 && (
+                    <ConversacionIA mensajes={cita.conversacion_ia} />
+                  )}
 
                   {/* Datos de contacto */}
                   <div style={{ display: 'flex', gap: '1rem', fontSize: '11px', color: 'var(--text-2)', flexWrap: 'wrap', marginBottom: '6px' }}>

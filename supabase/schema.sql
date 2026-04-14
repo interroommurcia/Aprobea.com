@@ -136,7 +136,8 @@ CREATE TABLE IF NOT EXISTS citas_solicitudes (
   estado           TEXT CHECK (estado IN ('pendiente','confirmada','denegada','reprogramada')) DEFAULT 'pendiente',
   fecha_confirmada DATE,
   hora_confirmada  TEXT,
-  nota_admin       TEXT
+  nota_admin       TEXT,
+  conversacion_ia  JSONB   -- historial del chat IA previo a la solicitud
 );
 CREATE INDEX IF NOT EXISTS idx_citas_cliente ON citas_solicitudes(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_citas_estado  ON citas_solicitudes(estado);
