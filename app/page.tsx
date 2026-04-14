@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import NPLCube3D from '@/components/NPLCube3D'
 import VideoShowcase from '@/components/VideoShowcase'
+import ChatIA from '@/components/ChatIA'
 
 export default function Home() {
   const [lang, setLangState] = useState<'es' | 'en'>('es')
@@ -1094,6 +1095,8 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      <ChatIA />
     </>
   )
 }
