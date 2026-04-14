@@ -4,8 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-// @ts-ignore
-import pdfParse from 'pdf-parse'
+import { extractText, getDocumentProxy } from 'unpdf'
 
 export const runtime = 'nodejs'
 
@@ -27,12 +26,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'El archivo no puede superar 10 MB' }, { status: 400 })
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
+  const buffer = new Uint8Array(await file.arrayBuffer())
 
   let contenido: string
   try {
-    const parsed = await pdfParse(buffer)
-    contenido = parsed.text?.trim() ?? ''
+    const pdf = await getDocumentProxy(buffer)
+    const { text } = await extractText(pdf, { mergePages: true })
+    contenido = (Array.isArray(text) ? text.join('\n') : text)?.trim() ?? ''
   } catch (e: any) {
     return NextResponse.json({ error: 'No se pudo leer el PDF: ' + e.message }, { status: 422 })
   }
