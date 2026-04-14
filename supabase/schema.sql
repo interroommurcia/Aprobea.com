@@ -109,3 +109,12 @@ CREATE POLICY "movimiento_own" ON movimientos
 
 -- Contabilidad: solo acceso vía service_role (admin), sin policy de usuario
 -- (RLS activo = ningún usuario autenticado puede leerla)
+
+-- 5. IA_DOCUMENTOS (base de conocimiento para el asistente)
+CREATE TABLE IF NOT EXISTS ia_documentos (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  nombre     TEXT NOT NULL,
+  contenido  TEXT NOT NULL
+);
+-- Sin RLS — solo acceso vía service_role (admin)

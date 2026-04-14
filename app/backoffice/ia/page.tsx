@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const PROTOCOLO_DEFAULT = `Eres el asistente virtual de GrupoSkyLine Investment, una firma española especializada en inversión NPL (Non-Performing Loans) y crowdfunding inmobiliario.
 
@@ -19,15 +19,26 @@ REGLAS:
 4. Si no puedes resolver la duda, ofrece escalar al equipo humano
 5. Respuestas cortas y directas — máximo 3-4 frases por respuesta`
 
+type Documento = { id: string; nombre: string; created_at: string; caracteres: number }
+
 export default function IAPage() {
   const [protocolo, setProtocolo] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+
+  // Chat de prueba
   const [testMsg, setTestMsg] = useState('')
   const [testReply, setTestReply] = useState('')
   const [testing, setTesting] = useState(false)
   const [chatHistory, setChatHistory] = useState<{role: string, content: string}[]>([])
+
+  // Documentos
+  const [docs, setDocs] = useState<Documento[]>([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [uploadOk, setUploadOk] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/backoffice/config')
@@ -36,7 +47,14 @@ export default function IAPage() {
         setProtocolo(d.ia_protocolo || PROTOCOLO_DEFAULT)
         setLoading(false)
       })
+    loadDocs()
   }, [])
+
+  function loadDocs() {
+    fetch('/api/backoffice/documentos')
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? setDocs(d) : null)
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -48,6 +66,37 @@ export default function IAPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadError('')
+    setUploadOk('')
+    setUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/backoffice/documentos/upload', { method: 'POST', body: fd })
+    const data = await res.json()
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+    if (!res.ok) {
+      setUploadError(data.error ?? 'Error al subir')
+    } else {
+      setUploadOk(`"${data.nombre}" subido correctamente`)
+      setTimeout(() => setUploadOk(''), 3000)
+      loadDocs()
+    }
+  }
+
+  async function handleDelete(id: string, nombre: string) {
+    if (!confirm(`¿Eliminar "${nombre}"?`)) return
+    await fetch('/api/backoffice/documentos', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    loadDocs()
   }
 
   async function handleTest(e: React.FormEvent) {
@@ -72,8 +121,7 @@ export default function IAPage() {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const chunk = decoder.decode(value)
-        for (const line of chunk.split('\n')) {
+        for (const line of decoder.decode(value).split('\n')) {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
             try {
               const { text } = JSON.parse(line.slice(6))
@@ -87,20 +135,27 @@ export default function IAPage() {
     setTesting(false)
   }
 
+  function fmtSize(chars: number) {
+    if (chars > 1000) return `~${Math.round(chars / 1000)}k chars`
+    return `${chars} chars`
+  }
+
   return (
-    <div style={{ padding: '2.5rem 3rem', maxWidth: '1100px' }}>
+    <div style={{ padding: '2.5rem 3rem', maxWidth: '1200px' }}>
       <div style={{ marginBottom: '2.5rem' }}>
         <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.5rem' }}>Inteligencia Artificial</div>
         <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)' }}>Asistente IA</h1>
         <p style={{ color: 'var(--text-2)', fontSize: '0.88rem', marginTop: '0.5rem' }}>
-          Edita los protocolos que definen cómo responde la IA a tus clientes. Guarda los cambios y pruébalos en tiempo real.
+          Edita los protocolos, sube documentos PDF y prueba la IA en tiempo real.
         </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '2rem' }}>
 
-        {/* ── EDITOR DE PROTOCOLOS ── */}
-        <div>
+        {/* ── COLUMNA IZQUIERDA ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+          {/* EDITOR DE PROTOCOLOS */}
           <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
             <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -132,7 +187,7 @@ export default function IAPage() {
                 value={protocolo}
                 onChange={e => setProtocolo(e.target.value)}
                 style={{
-                  width: '100%', minHeight: '480px', padding: '1.25rem 1.5rem',
+                  width: '100%', minHeight: '320px', padding: '1.25rem 1.5rem',
                   background: 'transparent', border: 'none', outline: 'none', resize: 'vertical',
                   fontFamily: 'monospace', fontSize: '13px', lineHeight: 1.7,
                   color: 'var(--text-1)', boxSizing: 'border-box',
@@ -141,12 +196,68 @@ export default function IAPage() {
             )}
           </div>
 
+          {/* DOCUMENTOS PDF */}
+          <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-0)', marginBottom: '2px' }}>Base de conocimiento</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-3)' }}>PDFs que la IA usará para responder con precisión</div>
+              </div>
+              <label style={{ background: 'var(--gold-200)', border: 'none', color: 'var(--bg-0)', padding: '6px 16px', borderRadius: 'var(--radius)', fontSize: '11px', cursor: 'pointer', fontWeight: 600, opacity: uploading ? 0.6 : 1 }}>
+                {uploading ? 'Subiendo…' : '+ Subir PDF'}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+
+            {/* Feedback upload */}
+            {(uploadError || uploadOk) && (
+              <div style={{ padding: '0.75rem 1.5rem', background: uploadError ? 'rgba(224,86,86,0.08)' : 'rgba(109,200,109,0.08)', borderBottom: '0.5px solid var(--gold-border)', fontSize: '12px', color: uploadError ? '#e05656' : '#6dc86d' }}>
+                {uploadError || uploadOk}
+              </div>
+            )}
+
+            {/* Lista de documentos */}
+            <div style={{ padding: '0.75rem 0' }}>
+              {docs.length === 0 ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-3)', fontSize: '12px' }}>
+                  No hay documentos. Sube un PDF para entrenar a la IA.
+                </div>
+              ) : (
+                docs.map(doc => (
+                  <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 1.5rem', borderBottom: '0.5px solid rgba(201,160,67,0.07)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <span style={{ fontSize: '18px', flexShrink: 0 }}>📄</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-1)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>
+                          {fmtSize(doc.caracteres)} · {new Date(doc.created_at).toLocaleDateString('es-ES')}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDelete(doc.id, doc.nombre)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '16px', padding: '4px 8px', flexShrink: 0 }}
+                      title="Eliminar"
+                    >🗑</button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
           {/* Tips */}
-          <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
             {[
               { icon: '🎯', title: 'Tono', desc: 'Define si quieres formal, cercano, técnico…' },
               { icon: '📋', title: 'Reglas', desc: 'Indica qué puede y qué NO puede decir la IA' },
-              { icon: '📞', title: 'Escalado', desc: 'Cuándo derivar al equipo humano' },
+              { icon: '📄', title: 'Documentos', desc: 'Sube dossiers, FAQs o contratos en PDF' },
             ].map(tip => (
               <div key={tip.title} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '0.75rem 1rem' }}>
                 <div style={{ fontSize: '16px', marginBottom: '4px' }}>{tip.icon}</div>
@@ -182,11 +293,10 @@ export default function IAPage() {
               )}
             </div>
 
-            {/* Mensajes */}
             <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', minHeight: '280px', maxHeight: '400px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {chatHistory.length === 0 && (
                 <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: '0.8rem', marginTop: '2rem' }}>
-                  Escribe un mensaje para probar la IA con el protocolo actual
+                  Escribe un mensaje para probar la IA con el protocolo y documentos actuales
                 </div>
               )}
               {chatHistory.map((m, i) => (
@@ -218,7 +328,6 @@ export default function IAPage() {
               )}
             </div>
 
-            {/* Input */}
             <form onSubmit={handleTest} style={{ padding: '0.75rem', borderTop: '0.5px solid var(--gold-border)', display: 'flex', gap: '0.5rem' }}>
               <input
                 className="form-input"

@@ -39,14 +39,22 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'messages requerido' }), { status: 400 })
     }
 
-    // Cargar protocolo desde Supabase
-    const { data: cfg } = await supabaseAdmin
-      .from('configuracion')
-      .select('value')
-      .eq('key', 'ia_protocolo')
-      .single()
+    // Cargar protocolo y documentos desde Supabase en paralelo
+    const [{ data: cfg }, { data: docs }] = await Promise.all([
+      supabaseAdmin.from('configuracion').select('value').eq('key', 'ia_protocolo').single(),
+      supabaseAdmin.from('ia_documentos').select('nombre, contenido').order('created_at', { ascending: false }),
+    ])
 
-    const systemPrompt = cfg?.value || PROTOCOLO_DEFAULT
+    let systemPrompt = cfg?.value || PROTOCOLO_DEFAULT
+
+    if (docs && docs.length > 0) {
+      const docsText = docs
+        .map((d: { nombre: string; contenido: string }) =>
+          `--- DOCUMENTO: ${d.nombre} ---\n${d.contenido.slice(0, 8000)}`
+        )
+        .join('\n\n')
+      systemPrompt += `\n\nBASE DE CONOCIMIENTO (usa esta información para responder con precisión):\n\n${docsText}`
+    }
 
     // Streaming con Claude Haiku
     const encoder = new TextEncoder()
