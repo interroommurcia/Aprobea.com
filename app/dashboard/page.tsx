@@ -1347,7 +1347,7 @@ export default function DashboardPage() {
         const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
         const citasReprog = misCitas.filter(c => c.estado === 'reprogramada')
         const eventosProximos = eventos.filter(ev =>
-          ev.tipo === 'recordatorio' && ev.fecha >= hoy && ev.fecha <= en7
+          ['recordatorio', 'operacion', 'pago'].includes(ev.tipo) && ev.fecha >= hoy && ev.fecha <= en7
         ).sort((a, b) => a.fecha.localeCompare(b.fecha))
 
         if (!citasReprog.length && !eventosProximos.length) return null
@@ -1360,17 +1360,23 @@ export default function DashboardPage() {
                 const fecha = new Date(ev.fecha + 'T00:00:00')
                 const diff = Math.round((fecha.getTime() - new Date().setHours(0,0,0,0)) / 86400000)
                 const cuandoStr = diff === 0 ? 'hoy' : diff === 1 ? 'mañana' : `el ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}`
+                const META: Record<string, { emoji: string; label: string; color: string; bg: string; border: string }> = {
+                  recordatorio: { emoji: '📞', label: 'Llamada confirmada', color: '#4da6d4', bg: 'rgba(77,166,212,0.1)', border: 'rgba(77,166,212,0.35)' },
+                  operacion:    { emoji: '🏛️', label: 'Firma / Notaría',    color: '#a07cff', bg: 'rgba(160,124,255,0.1)', border: 'rgba(160,124,255,0.35)' },
+                  pago:         { emoji: '💶', label: 'Pago programado',    color: '#6dc86d', bg: 'rgba(109,200,109,0.1)', border: 'rgba(109,200,109,0.35)' },
+                }
+                const m = META[ev.tipo] ?? META.recordatorio
                 return (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0', borderBottom: '0.5px solid rgba(77,166,212,0.08)' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(77,166,212,0.12)', border: '0.5px solid rgba(77,166,212,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>📞</div>
+                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0', borderBottom: `0.5px solid ${m.border.replace('0.35', '0.08')}` }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: m.bg, border: `0.5px solid ${m.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>{m.emoji}</div>
                     <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--text-1)' }}>
-                      <span style={{ color: '#4da6d4', fontWeight: 600 }}>Llamada confirmada</span>
-                      {' — '}tienes una llamada con el equipo de GrupoSkyLine <strong>{cuandoStr}</strong>
+                      <span style={{ color: m.color, fontWeight: 600 }}>{m.label}</span>
+                      {' — '}{ev.titulo.replace(/^(📞|🏛️|💶)\s*/, '')} <strong>{cuandoStr}</strong>
                       {(ev as any).hora ? ` a las ${(ev as any).hora}` : ''}
                     </div>
                     <button
                       onClick={() => setTab('Calendario')}
-                      style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: 'rgba(77,166,212,0.1)', border: '0.5px solid rgba(77,166,212,0.35)', color: '#4da6d4' }}
+                      style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: m.bg, border: `0.5px solid ${m.border}`, color: m.color }}
                     >
                       Ver calendario →
                     </button>
