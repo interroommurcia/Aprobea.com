@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { notificarActivoPublicado } from '@/lib/notificar-activo'
 
 function isAdmin(req: NextRequest) {
   return req.cookies.get('admin_session')?.value === '1'
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
   const ticket_minimo_raw     = form.get('ticket_minimo') as string | null
   const ticket_minimo         = ticket_minimo_raw ? parseFloat(ticket_minimo_raw) : null
   const imagen_principal      = (form.get('imagen_principal') as string) || null
+  const comunidad_autonoma    = (form.get('comunidad_autonoma') as string) || null
   const publico               = form.get('publico') !== 'false'
 
   if (!titulo || !tipo) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
     .insert({
       titulo, descripcion, tipo, pdf_url, pdf_nombre, activa: true,
       tickets_total, tickets_por_participante, importe_objetivo,
-      referencia_catastral, municipio, provincia, superficie, tipo_propiedad,
+      referencia_catastral, municipio, provincia, comunidad_autonoma, superficie, tipo_propiedad,
       valor_mercado, precio_compra, comision, rentabilidad, ticket_minimo,
       imagen_principal, publico,
     })
@@ -99,6 +101,20 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Notificar a clientes cuyas preferencias encajen con este activo
+  if (publico) {
+    notificarActivoPublicado({
+      id: data.id,
+      titulo: data.titulo,
+      tipo: data.tipo,
+      comunidad_autonoma: data.comunidad_autonoma ?? null,
+      ticket_minimo: data.ticket_minimo ?? null,
+      descripcion: data.descripcion ?? null,
+      provincia: data.provincia ?? null,
+    }).catch(e => console.error('[operaciones] Error notificando activo:', e))
+  }
+
   return NextResponse.json({ ...data, tickets_vendidos: 0 })
 }
 

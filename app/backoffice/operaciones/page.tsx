@@ -13,6 +13,7 @@ type Operacion = {
   tickets_total: number; tickets_vendidos: number; importe_objetivo: number | null
   tickets_por_participante: number
   referencia_catastral: string | null; municipio: string | null; provincia: string | null
+  comunidad_autonoma: string | null
   valor_mercado: number | null; precio_compra: number | null; comision: number | null
   rentabilidad: number | null; ticket_minimo: number | null
   superficie: number | null; tipo_propiedad: string | null
@@ -39,7 +40,7 @@ export default function OperacionesPage() {
     titulo: '', descripcion: '', tipo: 'crowdfunding',
     tickets_total: '10', importe_objetivo: '', tickets_por_participante: '1',
     // Property fields
-    referencia_catastral: '', municipio: '', provincia: '',
+    referencia_catastral: '', municipio: '', provincia: '', comunidad_autonoma: '',
     superficie: '', tipo_propiedad: 'Residencial',
     valor_mercado: '', precio_compra: '', comision: '',
     rentabilidad: '', ticket_minimo: '', imagen_principal: '',
@@ -269,7 +270,7 @@ export default function OperacionesPage() {
 
   function appendPropertyFields(fd: FormData) {
     const props: (keyof typeof EMPTY_FORM)[] = [
-      'referencia_catastral','municipio','provincia','superficie','tipo_propiedad',
+      'referencia_catastral','municipio','provincia','comunidad_autonoma','superficie','tipo_propiedad',
       'valor_mercado','precio_compra','comision','rentabilidad','ticket_minimo',
       'imagen_principal','publico',
     ]
@@ -357,10 +358,17 @@ export default function OperacionesPage() {
               </div>
             )}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
             <div><label className="bo-label">Municipio</label><input className="bo-input" value={form.municipio} onChange={e => setForm(f => ({ ...f, municipio: e.target.value.toUpperCase() }))} placeholder="LOS GALLARDOS" /></div>
             <div><label className="bo-label">Provincia</label><input className="bo-input" value={form.provincia} onChange={e => setForm(f => ({ ...f, provincia: e.target.value.toUpperCase() }))} placeholder="ALMERÍA" /></div>
             <div><label className="bo-label">Superficie (m²)</label><input className="bo-input" type="number" step="0.01" value={form.superficie} onChange={e => setForm(f => ({ ...f, superficie: e.target.value }))} placeholder="122" /></div>
+          </div>
+          <div>
+            <label className="bo-label">Comunidad Autónoma</label>
+            <select className="bo-input" value={form.comunidad_autonoma} onChange={e => setForm(f => ({ ...f, comunidad_autonoma: e.target.value }))}>
+              <option value="">— Sin especificar —</option>
+              {['Andalucía','Aragón','Asturias','Islas Baleares','Canarias','Cantabria','Castilla-La Mancha','Castilla y León','Cataluña','Comunitat Valenciana','Extremadura','Galicia','La Rioja','Madrid','Murcia','Navarra','País Vasco'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
           </div>
         </div>
 
