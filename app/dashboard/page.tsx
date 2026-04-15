@@ -11,6 +11,7 @@ import { downloadCSV, downloadExcel } from '@/lib/export'
 import TicketProgress from '@/components/TicketProgress'
 import MarketplaceCard from '@/components/MarketplaceCard'
 import Calendario, { EventoCalendario } from '@/components/Calendario'
+import SkylerWidget from '@/components/SkylerWidget'
 
 type Movimiento = { id: string; tipo: string; importe: number; fecha: string; descripcion: string }
 type Participacion = {
@@ -1529,6 +1530,9 @@ export default function DashboardPage() {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2.5rem 2rem' }}>
         {TAB_CONTENT[tab]}
       </div>
+
+      {/* SKYLLER — asistente virtual flotante */}
+      {chatToken2 && <SkylerWidget token={chatToken2} />}
 
       {/* Contact footer */}
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 3rem' }}>
