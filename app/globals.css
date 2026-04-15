@@ -627,13 +627,53 @@ footer {
   .service-card { border-right: none; border-bottom: 0.5px solid var(--gold-border); }
 }
 @media (max-width: 600px) {
-  .nav-right .btn-nav { display: none; }
+  /* Nav: ocultar solo "Regístrate" (dorado), mantener "Iniciar sesión" */
+  .nav-right .btn-nav:not(.btn-nav-login) { display: none; }
+  .nav-right { gap: 0.75rem; }
+  .btn-nav-login {
+    padding: 7px 14px !important;
+    font-size: 11px !important;
+  }
+  /* Cubo NPL: layout vertical en móvil, cubo arriba pequeño */
+  .npl-flip-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    padding: 1rem 1.25rem !important;
+    gap: 0;
+    align-content: start;
+    overflow: hidden;
+  }
+  .npl-flip-grid > div:first-child {
+    padding-right: 0 !important;
+    order: 2;
+  }
+  .npl-flip-scene {
+    order: 1;
+    height: 200px !important;
+    margin-bottom: 1.5rem;
+  }
+  .npl-flip-scene > div {
+    width: 260px !important;
+    height: 190px !important;
+  }
   .hero-ctas { flex-direction: column; }
   .stats-grid { grid-template-columns: 1fr; }
   .stat-item { border-right: none; border-bottom: 0.5px solid var(--gold-border); }
   .proceso-steps { grid-template-columns: 1fr; }
   .proceso-step { border-right: none; border-bottom: 0.5px solid var(--gold-border); }
   .footer-grid { grid-template-columns: 1fr; }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  /* Tablet: cubo más pequeño */
+  .npl-flip-grid {
+    grid-template-columns: 1fr 1fr !important;
+    padding: 0 1.5rem !important;
+  }
+  .npl-flip-scene {
+    width: 280px !important;
+    height: 220px !important;
+  }
 }
 
 /* ── RESPONSIVE — App (Dashboard + Backoffice) ── */

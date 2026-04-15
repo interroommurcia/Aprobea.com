@@ -209,6 +209,7 @@ export default function NPLCube3D({ lang = 'es' }: { lang?: 'es' | 'en' }) {
             alignItems: 'center', position: 'relative', zIndex: 1,
           }} className="npl-flip-grid">
 
+
             {/* ── TEXTO ── */}
             <div style={{ paddingRight: '3rem' }}>
               <div style={{
@@ -283,7 +284,7 @@ export default function NPLCube3D({ lang = 'es' }: { lang?: 'es' | 'en' }) {
             </div>
 
             {/* ── ESCENA 3D ── */}
-            <div style={{
+            <div className="npl-flip-scene" style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               height: '100%', position: 'relative',
             }}>
