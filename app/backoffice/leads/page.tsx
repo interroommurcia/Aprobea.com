@@ -16,9 +16,10 @@ type Lead = {
 }
 
 const ESTADO_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  nuevo: { bg: 'rgba(201,160,67,0.15)', color: '#C9A043', label: '🔔 Nuevo' },
-  contactado: { bg: 'rgba(109,200,109,0.12)', color: '#6dc86d', label: '✅ Contactado' },
-  descartado: { bg: 'rgba(255,255,255,0.05)', color: '#888', label: '✗ Descartado' },
+  nuevo:      { bg: 'rgba(201,160,67,0.15)',  color: '#C9A043', label: '🔔 Nuevo' },
+  contactado: { bg: 'rgba(109,200,109,0.12)', color: '#6dc86d', label: '📞 Contactado' },
+  convertido: { bg: 'rgba(77,166,212,0.15)',  color: '#4da6d4', label: '⭐ Convertido' },
+  descartado: { bg: 'rgba(255,255,255,0.05)', color: '#666',    label: '✗ Descartado' },
 }
 
 const INTERES_LABEL: Record<string, string> = {
@@ -69,9 +70,10 @@ export default function LeadsPage() {
   }
 
   const counts = {
-    todos: leads.length,
-    nuevo: leads.filter(l => l.estado === 'nuevo').length,
+    todos:      leads.length,
+    nuevo:      leads.filter(l => l.estado === 'nuevo').length,
     contactado: leads.filter(l => l.estado === 'contactado').length,
+    convertido: leads.filter(l => l.estado === 'convertido').length,
     descartado: leads.filter(l => l.estado === 'descartado').length,
   }
 
@@ -89,7 +91,7 @@ export default function LeadsPage() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {(['todos', 'nuevo', 'contactado', 'descartado'] as const).map(f => (
+        {(['todos', 'nuevo', 'contactado', 'convertido', 'descartado'] as const).map(f => (
           <button key={f} onClick={() => setFiltro(f)}
             style={{
               padding: '6px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -194,7 +196,7 @@ export default function LeadsPage() {
                     )}
 
                     {/* Cambiar estado */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                       {(['nuevo', 'contactado', 'descartado'] as const).map(est => (
                         <button key={est} onClick={() => updateEstado(lead.id, est)}
                           disabled={guardando === lead.id || lead.estado === est}
@@ -208,6 +210,31 @@ export default function LeadsPage() {
                           {ESTADO_COLORS[est].label}
                         </button>
                       ))}
+
+                      {/* Separador */}
+                      <div style={{ width: '1px', height: '24px', background: 'var(--gold-border)', margin: '0 4px' }} />
+
+                      {/* Botón convertir */}
+                      {lead.estado !== 'convertido' ? (
+                        <button onClick={() => updateEstado(lead.id, 'convertido')}
+                          disabled={guardando === lead.id}
+                          style={{
+                            padding: '5px 16px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                            background: 'linear-gradient(135deg,#4da6d4,#2d7da8)',
+                            color: '#fff', border: 'none',
+                            opacity: guardando === lead.id ? 0.6 : 1,
+                            display: 'flex', alignItems: 'center', gap: '5px',
+                          }}>
+                          ⭐ Convertir en cliente
+                        </button>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '11px', color: '#4da6d4', fontWeight: 600 }}>⭐ Convertido</span>
+                          <a href="/backoffice/clientes" style={{ fontSize: '10px', color: 'var(--text-3)', textDecoration: 'underline' }}>
+                            Ver clientes →
+                          </a>
+                        </div>
+                      )}
                     </div>
 
                     {/* Nota interna */}
