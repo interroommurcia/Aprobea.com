@@ -664,6 +664,7 @@ export default function Home() {
             }} />
 
             {/* Marco del browser */}
+            <div className="dash-mockup-wrap">
             <div style={{
               maxWidth: '900px', margin: '0 auto', position: 'relative',
               borderRadius: '14px', overflow: 'hidden',
@@ -818,6 +819,7 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            </div>{/* /dash-mockup-wrap */}
           </div>
 
           {/* Features del software */}

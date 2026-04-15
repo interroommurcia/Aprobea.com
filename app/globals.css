@@ -634,7 +634,8 @@ footer {
     padding: 7px 14px !important;
     font-size: 11px !important;
   }
-  /* Cubo NPL: layout vertical en móvil, cubo arriba pequeño */
+
+  /* Cubo NPL: layout vertical en móvil */
   .npl-flip-grid {
     grid-template-columns: 1fr !important;
     grid-template-rows: auto auto !important;
@@ -656,6 +657,19 @@ footer {
     width: 260px !important;
     height: 190px !important;
   }
+
+  /* Dashboard mockup: escalar para caber en pantalla */
+  .dash-mockup-wrap {
+    overflow: hidden;
+    border-radius: 10px;
+  }
+  .dash-mockup-wrap > div {
+    transform-origin: top left;
+    transform: scale(0.42);
+    width: calc(100% / 0.42);
+    margin-bottom: calc(-480px * 0.58 - 40px);
+  }
+
   .hero-ctas { flex-direction: column; }
   .stats-grid { grid-template-columns: 1fr; }
   .stat-item { border-right: none; border-bottom: 0.5px solid var(--gold-border); }
@@ -671,8 +685,19 @@ footer {
     padding: 0 1.5rem !important;
   }
   .npl-flip-scene {
-    width: 280px !important;
     height: 220px !important;
+  }
+  .npl-flip-scene > div {
+    width: 280px !important;
+    height: 210px !important;
+  }
+
+  /* Dashboard mockup tablet */
+  .dash-mockup-wrap > div {
+    transform-origin: top left;
+    transform: scale(0.72);
+    width: calc(100% / 0.72);
+    margin-bottom: calc(-480px * 0.28 - 20px);
   }
 }
 
