@@ -329,6 +329,7 @@ export default function DashboardPage() {
               if (parsed.text) { full += parsed.text; setIaStream(s => s + parsed.text) }
               if (parsed.modo === 'gratuito') esGratuito = true
               if (parsed.cita_creada) citaCreada = { tipo: parsed.tipo, fecha: parsed.fecha, hora: parsed.hora }
+              if (parsed.mensaje_enviado) citaCreada = { tipo: 'mensaje' }
             } catch {}
           }
         }
@@ -1197,9 +1198,15 @@ export default function DashboardPage() {
               {m.modo === 'gratuito' && (
                 <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px' }}>⚡ Modo básico</div>
               )}
-              {m.cita && (
+              {m.cita && m.cita.tipo === 'mensaje' && (
+                <div style={{ marginTop: '8px', background: 'rgba(77,166,212,0.08)', border: '0.5px solid rgba(77,166,212,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#4da6d4', maxWidth: '80%' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✉️ Mensaje enviado al equipo</div>
+                  <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>El equipo responderá en horario de oficina. Puedes ver la respuesta en la pestaña <strong>Mensajes</strong>.</div>
+                </div>
+              )}
+              {m.cita && m.cita.tipo !== 'mensaje' && (
                 <div style={{ marginTop: '8px', background: 'rgba(109,200,109,0.08)', border: '0.5px solid rgba(109,200,109,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#6dc86d', maxWidth: '80%' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✓ Solicitud de llamada enviada</div>
+                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>📞 Solicitud de llamada enviada</div>
                   <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>
                     {m.cita.fecha ? `📅 ${new Date(m.cita.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
                     {m.cita.hora ? ` · ${m.cita.hora}` : ''}

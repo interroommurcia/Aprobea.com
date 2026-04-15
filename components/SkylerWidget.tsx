@@ -104,7 +104,7 @@ export default function SkylerWidget({ token }: Props) {
             <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,#C9A043,#7a5c1e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px', flexShrink: 0, boxShadow: '0 2px 12px rgba(201,160,67,0.4)' }}>S</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--gold-100)', letterSpacing: '0.06em' }}>SKYLLER</div>
-              <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>Asistente virtual · GrupoSkyLine</div>
+              <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '1px' }}>GrupoSkyLine Investment</div>
             </div>
             <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '18px', lineHeight: 1, padding: '2px 4px' }}>×</button>
           </div>
