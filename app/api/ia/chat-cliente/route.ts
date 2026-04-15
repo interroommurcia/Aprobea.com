@@ -126,24 +126,32 @@ function streamTexto(texto: string, encoder: TextEncoder, extra?: Record<string,
 
 // Busca o crea una conversación activa del cliente en backoffice
 async function getOCreateConversacion(clienteId: string): Promise<string> {
+  // Buscar conversación existente del cliente
   const { data: existing } = await supabaseAdmin
     .from('conversaciones')
     .select('id')
     .eq('cliente_id', clienteId)
-    .eq('activa', true)
-    .order('ultimo_mensaje_at', { ascending: false })
+    .order('updated_at', { ascending: false })
     .limit(1)
     .single()
 
   if (existing?.id) return existing.id
 
-  const { data: nueva } = await supabaseAdmin
+  // Crear nueva conversación con los campos requeridos
+  const { data: nueva, error } = await supabaseAdmin
     .from('conversaciones')
-    .insert({ cliente_id: clienteId, activa: true, no_leidos_admin: 1, no_leidos_cliente: 0 })
+    .insert({
+      cliente_id: clienteId,
+      tipo: 'general',
+      estado: 'abierta',
+      no_leidos_admin: 1,
+      no_leidos_cliente: 0,
+    })
     .select('id')
     .single()
 
-  return nueva!.id
+  if (error || !nueva) throw new Error(`No se pudo crear conversación: ${error?.message}`)
+  return nueva.id
 }
 
 export async function POST(req: NextRequest) {
