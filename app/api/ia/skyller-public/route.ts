@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
             interes: input.interes || 'general',
             mensaje: input.mensaje || '',
             estado: 'nuevo',
+            conversacion: messages, // guardamos el hilo completo
           })
           leadGuardado = true
         } catch (e) {

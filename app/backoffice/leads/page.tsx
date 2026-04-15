@@ -12,6 +12,7 @@ type Lead = {
   mensaje: string | null
   estado: string
   nota_admin: string | null
+  conversacion: { role: 'user' | 'assistant'; content: string }[] | null
 }
 
 const ESTADO_COLORS: Record<string, { bg: string; color: string; label: string }> = {
@@ -163,6 +164,32 @@ export default function LeadsPage() {
                       <div style={{ background: 'var(--bg-2)', borderRadius: '10px', padding: '10px 14px', margin: '1rem 0', fontSize: '12.5px', color: 'var(--text-1)', lineHeight: 1.6, borderLeft: '3px solid rgba(201,160,67,0.4)' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Motivo de interés</div>
                         {lead.mensaje}
+                      </div>
+                    )}
+
+                    {/* Conversación con SKYLLER */}
+                    {lead.conversacion && lead.conversacion.length > 0 && (
+                      <div style={{ marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                          💬 Conversación con SKYLLER ({lead.conversacion.length} mensajes)
+                        </div>
+                        <div style={{ background: 'var(--bg-2)', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '280px', overflowY: 'auto' }}>
+                          {lead.conversacion.map((m, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                              <div style={{
+                                maxWidth: '82%', padding: '7px 11px', fontSize: '11.5px', lineHeight: 1.55,
+                                borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                                background: m.role === 'user' ? 'linear-gradient(135deg,#C9A043,#a07828)' : 'var(--bg-1)',
+                                color: m.role === 'user' ? '#0a0a0a' : 'var(--text-1)',
+                                border: m.role === 'assistant' ? '0.5px solid rgba(201,160,67,0.2)' : 'none',
+                                whiteSpace: 'pre-wrap',
+                              }}>
+                                {m.role === 'assistant' && <span style={{ fontSize: '9px', fontWeight: 700, color: '#C9A043', display: 'block', marginBottom: '2px' }}>SKYLLER</span>}
+                                {typeof m.content === 'string' ? m.content : JSON.stringify(m.content)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
