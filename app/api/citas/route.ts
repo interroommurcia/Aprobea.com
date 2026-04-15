@@ -84,26 +84,35 @@ export async function PATCH(req: NextRequest) {
 
     if (cita.fecha_confirmada) {
       const nombreCliente = `${cliente.nombre} ${cliente.apellidos}`
+      const hora = cita.hora_confirmada ?? '10:00'
 
       await Promise.all([
-        // Evento en el calendario del cliente
+        // Evento en el calendario del CLIENTE
         supabaseAdmin.from('eventos_calendario').insert({
           cliente_id: cliente.id,
           titulo: '📞 Llamada GrupoSkyLine',
-          descripcion: 'Llamada confirmada con el equipo de GrupoSkyLine',
+          descripcion: 'Has confirmado la llamada con el equipo de GrupoSkyLine. Te llamaremos en el horario acordado.',
           fecha: cita.fecha_confirmada,
-          hora: cita.hora_confirmada ?? '10:00',
+          hora,
           tipo: 'recordatorio',
         }),
-        // Evento en el calendario del admin
+        // Evento en el calendario del ADMIN
         supabaseAdmin.from('eventos_calendario').insert({
-          cliente_id: null,
-          user_id: null,
+          cliente_id: cliente.id,
           titulo: `📞 Llamada: ${nombreCliente}`,
           descripcion: `Llamada confirmada por el cliente. Motivo: ${cita.mensaje}`,
           fecha: cita.fecha_confirmada,
-          hora: cita.hora_confirmada ?? '10:00',
+          hora,
           tipo: 'operacion',
+          is_admin: true,
+        }),
+        // Notificación de confirmación al cliente
+        supabaseAdmin.from('notificaciones').insert({
+          cliente_id: cliente.id,
+          titulo: '✓ Llamada confirmada — añadida a tu calendario',
+          mensaje: `Tu llamada está confirmada el ${new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${hora}. Ya aparece en tu calendario.`,
+          tipo: 'cita',
+          leida: false,
         }),
       ])
     }

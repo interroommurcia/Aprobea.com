@@ -1160,7 +1160,8 @@ export default function DashboardPage() {
             <button
               onClick={async () => {
                 await fetch('/api/citas', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` }, body: JSON.stringify({ id: cita.id, accion: 'rechazar' }) })
-                setMisCitas(prev => prev.map(c => c.id === cita.id ? { ...c, estado: 'pendiente' } : c))
+                // Recargar citas frescas del servidor
+                if (chatToken2) fetch('/api/citas', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then(d => setMisCitas(Array.isArray(d) ? d : []))
               }}
               style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: 'transparent', border: '0.5px solid rgba(224,86,86,0.5)', color: '#e05656' }}>
               ✕ No me viene bien

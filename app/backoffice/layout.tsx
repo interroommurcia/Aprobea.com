@@ -25,6 +25,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
   // Notificaciones de citas pendientes
   const [citasPendientes, setCitasPendientes] = useState<CitaPendiente[]>([])
   const [leadsNuevos, setLeadsNuevos] = useState(0)
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState(0)
   const [showNotifBell, setShowNotifBell] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
 
@@ -45,11 +46,20 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
         .then(d => setCitasPendientes(Array.isArray(d) ? d : []))
     }
     loadCitas()
-    // Cargar leads nuevos
+
+    // Cargar leads nuevos y mensajes no leídos en paralelo
     fetch('/api/backoffice/leads')
       .then(r => r.ok ? r.json() : [])
       .then(d => setLeadsNuevos(Array.isArray(d) ? d.filter((l: any) => l.estado === 'nuevo').length : 0))
-    const interval = setInterval(loadCitas, 60000)
+
+    function loadMensajes() {
+      fetch('/api/backoffice/chat')
+        .then(r => r.ok ? r.json() : [])
+        .then(d => setMensajesNoLeidos(Array.isArray(d) ? d.filter((c: any) => (c.no_leidos_admin ?? 0) > 0).length : 0))
+    }
+    loadMensajes()
+
+    const interval = setInterval(() => { loadCitas(); loadMensajes() }, 30000)
     return () => clearInterval(interval)
   }, [ready, pathname])
 
@@ -121,6 +131,11 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
               {esCitas && citasPendientes.length > 0 && (
                 <span style={{ marginLeft: 'auto', background: '#C9A043', color: '#0a0a0a', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 }}>
                   {citasPendientes.length}
+                </span>
+              )}
+              {item.href === '/backoffice/chat' && mensajesNoLeidos > 0 && (
+                <span style={{ marginLeft: 'auto', background: '#e05656', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 }}>
+                  {mensajesNoLeidos}
                 </span>
               )}
               {item.href === '/backoffice/leads' && leadsNuevos > 0 && (

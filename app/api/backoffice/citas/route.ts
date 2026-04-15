@@ -41,24 +41,24 @@ async function crearEventosCalendario(
   const horaStr = hora ?? '10:00'
 
   await Promise.all([
-    // Evento en el calendario del cliente
+    // Evento en el calendario del CLIENTE
     supabaseAdmin.from('eventos_calendario').insert({
       cliente_id: clienteId,
       titulo: `📞 ${titulo}`,
-      descripcion: 'Llamada agendada con el equipo de GrupoSkyLine',
+      descripcion: 'Llamada confirmada con el equipo de GrupoSkyLine. Recibirás la llamada en el horario acordado.',
       fecha,
       hora: horaStr,
       tipo: 'recordatorio',
     }),
-    // Evento en el calendario del admin (sin cliente_id para que aparezca en backoffice)
+    // Evento en el calendario del ADMIN (is_admin flag para que aparezca en backoffice)
     supabaseAdmin.from('eventos_calendario').insert({
-      cliente_id: null,
-      user_id: null,
+      cliente_id: clienteId,   // ← vinculado al cliente para tener contexto
       titulo: `📞 Llamada: ${clienteNombre}`,
-      descripcion: `Llamada confirmada con cliente`,
+      descripcion: `Llamada confirmada. Cliente: ${clienteNombre}`,
       fecha,
       hora: horaStr,
       tipo: 'operacion',
+      is_admin: true,          // ← distingue eventos del admin
     }),
   ])
 }
@@ -115,15 +115,17 @@ export async function PATCH(req: NextRequest) {
     })
   }
 
-  // ── DENEGADA ──────────────────────────────────────────────────
+  // ── DENEGADA: notificar + BORRAR la cita para evitar race conditions ──
   if (estado === 'denegada') {
     await supabaseAdmin.from('notificaciones').insert({
       cliente_id: clienteId,
       titulo: 'Solicitud de llamada no disponible',
-      mensaje: `${nota_admin || 'No tenemos disponibilidad en ese momento. Puedes escribirnos a hola@gruposkyline.org para encontrar otra fecha.'}`,
+      mensaje: `${nota_admin || 'No tenemos disponibilidad en ese momento. Puedes enviarnos un mensaje desde el Asistente IA para encontrar otra fecha.'}`,
       tipo: 'cita',
       leida: false,
     })
+    // Borrar la cita para que no quede visible ni genere conflictos en el dashboard del cliente
+    await supabaseAdmin.from('citas_solicitudes').delete().eq('id', id)
   }
 
   return NextResponse.json({ ok: true })
