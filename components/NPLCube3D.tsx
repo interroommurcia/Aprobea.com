@@ -210,8 +210,8 @@ export default function NPLCube3D({ lang = 'es' }: { lang?: 'es' | 'en' }) {
           }} className="npl-flip-grid">
 
 
-            {/* ── TEXTO ── */}
-            <div style={{ paddingRight: '3rem' }}>
+            {/* ── TEXTO (oculto en móvil, todo va dentro del panel) ── */}
+            <div className="npl-text-col" style={{ paddingRight: '3rem' }}>
               <div style={{
                 fontSize: '10px', letterSpacing: '0.25em', textTransform: 'uppercase',
                 color: 'var(--gold-200)', marginBottom: '1.25rem',
@@ -288,8 +288,8 @@ export default function NPLCube3D({ lang = 'es' }: { lang?: 'es' | 'en' }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               height: '100%', position: 'relative',
             }}>
-              {/* Perspectiva — "50vw" como admdesign */}
-              <div style={{
+              {/* Perspectiva */}
+              <div className="npl-perspective-wrap" style={{
                 perspective: '50vw',
                 perspectiveOrigin: 'center center',
                 width: '460px', height: '340px',
@@ -351,6 +351,15 @@ export default function NPLCube3D({ lang = 'es' }: { lang?: 'es' | 'en' }) {
                       }}>
                         {s.title}
                       </div>
+
+                      {/* Descripción — solo visible en móvil */}
+                      <p className="npl-panel-mobile-desc" style={{
+                        fontSize: '12px', color: 'rgba(245,240,232,0.65)',
+                        lineHeight: 1.65, maxWidth: '280px',
+                        margin: '4px 0', display: 'none',
+                      }}>
+                        {s.desc}
+                      </p>
 
                       {/* Etiquetas en el panel */}
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '6px' }}>

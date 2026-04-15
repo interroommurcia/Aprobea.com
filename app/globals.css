@@ -635,27 +635,25 @@ footer {
     font-size: 11px !important;
   }
 
-  /* Cubo NPL: layout vertical en móvil */
+  /* Cubo NPL móvil: tarjeta full-screen con todo el contenido dentro */
+  .npl-text-col { display: none !important; }
+  .npl-panel-mobile-desc { display: block !important; }
   .npl-flip-grid {
     grid-template-columns: 1fr !important;
-    grid-template-rows: auto auto !important;
-    padding: 1rem 1.25rem !important;
-    gap: 0;
-    align-content: start;
-    overflow: hidden;
-  }
-  .npl-flip-grid > div:first-child {
-    padding-right: 0 !important;
-    order: 2;
+    padding: 0 1.25rem !important;
+    height: 100%;
   }
   .npl-flip-scene {
-    order: 1;
-    height: 200px !important;
-    margin-bottom: 1.5rem;
+    height: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
-  .npl-flip-scene > div {
-    width: 260px !important;
-    height: 190px !important;
+  .npl-perspective-wrap {
+    width: calc(100vw - 2.5rem) !important;
+    height: 62vh !important;
+    perspective: 800px !important;
   }
 
   /* Dashboard mockup: escalar para caber en pantalla */
@@ -679,17 +677,14 @@ footer {
 }
 
 @media (min-width: 601px) and (max-width: 900px) {
-  /* Tablet: cubo más pequeño */
+  /* Tablet: cubo más pequeño pero mantiene 2 col */
   .npl-flip-grid {
     grid-template-columns: 1fr 1fr !important;
     padding: 0 1.5rem !important;
   }
-  .npl-flip-scene {
-    height: 220px !important;
-  }
-  .npl-flip-scene > div {
-    width: 280px !important;
-    height: 210px !important;
+  .npl-perspective-wrap {
+    width: 300px !important;
+    height: 240px !important;
   }
 
   /* Dashboard mockup tablet */
