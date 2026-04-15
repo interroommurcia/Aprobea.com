@@ -22,7 +22,20 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "GrupoSkyLine — Capital. Estrategia. Futuro.",
   description:
-    "GrupoSkyLine conecta inversores de alto perfil con oportunidades NPL y crowdfunding inmobiliario de primer nivel en España.",
+    "Compra de Créditos Hipotecarios y Activos Inmobiliarios",
+  icons: {
+    icon: [
+      { url: "/logo.png", type: "image/png" },
+    ],
+    apple: "/logo.png",
+    shortcut: "/logo.png",
+  },
+  openGraph: {
+    title: "GrupoSkyLine — Capital. Estrategia. Futuro.",
+    description: "Compra de Créditos Hipotecarios y Activos Inmobiliarios",
+    images: [{ url: "/logo.png" }],
+    type: "website",
+  },
 };
 
 export default function RootLayout({
