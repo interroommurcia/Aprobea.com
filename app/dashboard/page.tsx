@@ -118,12 +118,24 @@ export default function DashboardPage() {
   const [chatEnviando, setChatEnviando] = useState(false)
   const [chatToken, setChatToken] = useState('')
   const [renovando, setRenovando] = useState(false)
+  const [pagoConfirmado, setPagoConfirmado] = useState<{ op: string } | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const chatFileRef = useRef<HTMLInputElement>(null)
   const bellRef = useRef<HTMLDivElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
   const calWidgetRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  // Detectar ?pago=ok al volver de Stripe Checkout
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('pago') === 'ok') {
+      setPagoConfirmado({ op: params.get('op') ?? '' })
+      // Limpiar URL sin recargar
+      window.history.replaceState({}, '', '/dashboard')
+    }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -1282,6 +1294,35 @@ export default function DashboardPage() {
   // ─── Layout ───────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-0)' }}>
+
+      {/* ── Modal confirmación de pago ── */}
+      {pagoConfirmado && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
+          onClick={() => setPagoConfirmado(null)}>
+          <div style={{ background: 'var(--bg-1)', border: '0.5px solid rgba(201,160,67,0.45)', borderRadius: '24px', padding: '2.5rem 2rem', maxWidth: '420px', width: '100%', textAlign: 'center', boxShadow: '0 32px 100px rgba(0,0,0,0.8)', animation: 'skylerIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}
+            onClick={e => e.stopPropagation()}>
+            {/* Icono check */}
+            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,#C9A043,#a07828)', margin: '0 auto 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(201,160,67,0.4)' }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold-100)', fontFamily: 'var(--font-cormorant)', marginBottom: '0.5rem' }}>¡Pago confirmado!</div>
+            <div style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: 1.7, marginBottom: '1.75rem' }}>
+              Tu reserva ha sido procesada con éxito.<br/>
+              El equipo de GrupoSkyLine revisará tu participación y recibirás una notificación cuando esté activa.
+            </div>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button onClick={() => setPagoConfirmado(null)} style={{ padding: '10px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#C9A043,#a07828)', border: 'none', color: '#0a0a0a', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>
+                Ver mis inversiones
+              </button>
+              <button onClick={() => { setPagoConfirmado(null); setTab(i18n.myInvestments) }} style={{ padding: '10px 24px', borderRadius: '12px', background: 'var(--bg-3)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)', fontSize: '14px', cursor: 'pointer' }}>
+                Ir a cartera
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Top nav */}
       <nav style={{ borderBottom: '0.5px solid var(--gold-border)', background: 'var(--bg-0)', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
