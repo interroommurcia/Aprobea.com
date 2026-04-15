@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import NPLCube3D from '@/components/NPLCube3D'
 import VideoShowcase from '@/components/VideoShowcase'
 import ChatIA from '@/components/ChatIA'
+import SkylerPublicWidget from '@/components/SkylerPublicWidget'
 
 export default function Home() {
   const [lang, setLangState] = useState<'es' | 'en'>('es')
@@ -1098,6 +1099,7 @@ export default function Home() {
       </div>
 
       <ChatIA />
+      <SkylerPublicWidget />
     </>
   )
 }

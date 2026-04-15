@@ -24,6 +24,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
 
   // Notificaciones de citas pendientes
   const [citasPendientes, setCitasPendientes] = useState<CitaPendiente[]>([])
+  const [leadsNuevos, setLeadsNuevos] = useState(0)
   const [showNotifBell, setShowNotifBell] = useState(false)
   const bellRef = useRef<HTMLDivElement>(null)
 
@@ -44,6 +45,10 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
         .then(d => setCitasPendientes(Array.isArray(d) ? d : []))
     }
     loadCitas()
+    // Cargar leads nuevos
+    fetch('/api/backoffice/leads')
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setLeadsNuevos(Array.isArray(d) ? d.filter((l: any) => l.estado === 'nuevo').length : 0))
     const interval = setInterval(loadCitas, 60000)
     return () => clearInterval(interval)
   }, [ready, pathname])
@@ -80,6 +85,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     { href: '/backoffice/referidos', label: 'Referidos', icon: '🔗' },
     { href: '/backoffice/calendario', label: 'Calendario', icon: '📅' },
     { href: '/backoffice/citas', label: 'Citas', icon: '📞' },
+    { href: '/backoffice/leads', label: 'Leads SKYLLER', icon: '📥' },
     { href: '/backoffice/ia', label: 'IA Asistente', icon: '🤖' },
     { href: '/backoffice/pagos', label: 'Pagos', icon: '💳' },
     { href: '/backoffice/configuracion', label: 'Configuración', icon: '⚙' },
@@ -115,6 +121,11 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
               {esCitas && citasPendientes.length > 0 && (
                 <span style={{ marginLeft: 'auto', background: '#C9A043', color: '#0a0a0a', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 }}>
                   {citasPendientes.length}
+                </span>
+              )}
+              {item.href === '/backoffice/leads' && leadsNuevos > 0 && (
+                <span style={{ marginLeft: 'auto', background: '#4da6d4', color: '#fff', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 }}>
+                  {leadsNuevos}
                 </span>
               )}
             </Link>
