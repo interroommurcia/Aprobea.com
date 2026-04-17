@@ -1047,6 +1047,9 @@ export default function DashboardPage() {
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 className="serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.5rem' }}>Asistente IA</h2>
         <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Responde tus preguntas sobre inversiones, documentación y operaciones.</p>
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', opacity: 0.6, marginTop: '0.4rem', lineHeight: 1.55 }}>
+          * Este servicio está sujeto a cambios, incluso a su anulación, si la empresa proveedora altera, cambia o modifica los precios.
+        </p>
       </div>
 
     <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>

@@ -623,6 +623,7 @@ export default function Home() {
               <li data-es="Subida y firma de documentos" data-en="Document upload & signing">Subida y firma de documentos</li>
               <li data-es="Reportes de rendimiento en tiempo real" data-en="Real-time performance reports">Reportes de rendimiento en tiempo real</li>
               <li data-es="Due diligence compartida" data-en="Shared due diligence">Due diligence compartida</li>
+              <li data-es="Licencia de IA Claude · Pro" data-en="Claude AI License · Pro">Licencia de IA Claude · Pro</li>
               <li data-es="Justificante de previsión de fondos requerido" data-en="Proof of funds forecast required">Justificante de previsión de fondos requerido</li>
             </ul>
             <button className="btn-register btn-register-gold" onClick={() => setOpenModal('npl')} data-es="Crear cuenta Inversor" data-en="Create Investor Account">
@@ -661,6 +662,7 @@ export default function Home() {
               <li data-es="Panel de seguimiento en tiempo real" data-en="Real-time tracking dashboard">Panel de seguimiento en tiempo real</li>
               <li data-es="Historial de inversiones" data-en="Investment history">Historial de inversiones</li>
               <li data-es="Asesor personal asignado" data-en="Dedicated personal advisor">Asesor personal asignado</li>
+              <li data-es="Licencia de IA Claude · Pro" data-en="Claude AI License · Pro">Licencia de IA Claude · Pro</li>
             </ul>
             <button className="btn-register btn-register-outline" onClick={() => setOpenModal('crowdfunding')} data-es="Unirme · 60€ + IVA / año" data-en="Join · €60 + VAT / year">
               Unirme · 60€ + IVA / año
