@@ -1280,15 +1280,43 @@ export default function DashboardPage() {
     </div>
   )
 
+  // ─── Plan gratuito: secciones bloqueadas ─────────────────
+  const esGratuito = cliente?.tipo_inversor === 'gratuito'
+  const BLOQUEADAS_GRATUITO = ['Referidos', 'Calendario', 'Asistente IA']
+
+  const tabBloqueado = (seccion: string) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', textAlign: 'center', padding: '3rem 2rem' }}>
+      <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', marginBottom: '1.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+        🔒
+      </div>
+      <h3 style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.75rem' }}>
+        {seccion}
+      </h3>
+      <p style={{ fontSize: '0.875rem', color: 'var(--text-3)', maxWidth: '360px', lineHeight: 1.75, marginBottom: '0.5rem' }}>
+        Esta sección no está disponible en el <strong style={{ color: 'var(--text-2)' }}>plan gratuito</strong>.
+        Actualiza a Crowdfunding o NPL para desbloquear todas las funcionalidades.
+      </p>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginBottom: '2rem' }}>
+        {seccion === 'Referidos' && 'Genera comisiones invitando a otros inversores a la plataforma.'}
+        {seccion === 'Calendario' && 'Gestiona vencimientos, llamadas y eventos de tus inversiones.'}
+        {seccion === 'Asistente IA' && 'IA entrenada con tus inversiones para resolver cualquier duda al instante.'}
+      </p>
+      <a href="mailto:info@gruposkyline.org?subject=Actualizar%20plan"
+        style={{ display: 'inline-block', padding: '12px 28px', borderRadius: '10px', background: 'linear-gradient(135deg,#C9A043,#a07828)', color: '#0a0a0a', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', textTransform: 'uppercase' }}>
+        Contactar para actualizar →
+      </a>
+    </div>
+  )
+
   const TAB_CONTENT: Record<string, React.ReactNode> = {
     'Dashboard': tabDashboard,
     'Mis Inversiones': tabInversiones,
     'Marketplace': tabMarketplace,
     'Transacciones': tabTransacciones,
     'Mensajes': tabMensajes,
-    'Referidos': tabReferidos,
-    'Calendario': tabCalendario,
-    'Asistente IA': tabAsistenteIA,
+    'Referidos':    esGratuito ? tabBloqueado('Referidos')    : tabReferidos,
+    'Calendario':   esGratuito ? tabBloqueado('Calendario')   : tabCalendario,
+    'Asistente IA': esGratuito ? tabBloqueado('Asistente IA') : tabAsistenteIA,
     'Perfil': tabPerfil,
   }
 
@@ -1329,26 +1357,33 @@ export default function DashboardPage() {
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
           {/* Tabs */}
           <div style={{ display: 'flex', alignItems: 'center', height: '100%', gap: '0.25rem' }}>
-            {TABS.map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  padding: '0 1rem', height: '100%', position: 'relative',
-                  fontSize: '0.82rem', letterSpacing: '0.02em',
-                  color: tab === t ? 'var(--text-0)' : 'var(--text-3)',
-                  fontWeight: tab === t ? 600 : 400,
-                  borderBottom: tab === t ? '2px solid var(--gold-200)' : '2px solid transparent',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {t}
-                {t === 'Mensajes' && unreadMsgs > 0 && (
-                  <span style={{ position: 'absolute', top: '12px', right: '6px', background: 'var(--gold-200)', color: '#1a1506', borderRadius: '8px', fontSize: '8px', fontWeight: 700, padding: '1px 5px' }}>{unreadMsgs}</span>
-                )}
-              </button>
-            ))}
+            {TABS.map(t => {
+              const bloqueada = esGratuito && BLOQUEADAS_GRATUITO.includes(t)
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  title={bloqueada ? 'Disponible en planes de pago' : undefined}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '0 1rem', height: '100%', position: 'relative',
+                    fontSize: '0.82rem', letterSpacing: '0.02em',
+                    color: tab === t ? 'var(--text-0)' : bloqueada ? 'var(--text-3)' : 'var(--text-3)',
+                    opacity: bloqueada ? 0.55 : 1,
+                    fontWeight: tab === t ? 600 : 400,
+                    borderBottom: tab === t ? '2px solid var(--gold-200)' : '2px solid transparent',
+                    transition: 'all 0.15s',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                  }}
+                >
+                  {t}
+                  {bloqueada && <span style={{ fontSize: '9px', opacity: 0.7 }}>🔒</span>}
+                  {t === 'Mensajes' && unreadMsgs > 0 && (
+                    <span style={{ position: 'absolute', top: '12px', right: '6px', background: 'var(--gold-200)', color: '#1a1506', borderRadius: '8px', fontSize: '8px', fontWeight: 700, padding: '1px 5px' }}>{unreadMsgs}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
 
           {/* Right actions */}

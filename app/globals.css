@@ -364,8 +364,8 @@ section { padding: 7rem 5vw; }
 /* ── REGISTRO ── */
 #registro { background: var(--bg-0); }
 .register-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 2rem; margin-top: 4rem;
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 1.5rem; margin-top: 4rem;
 }
 .register-card {
   background: var(--bg-2);

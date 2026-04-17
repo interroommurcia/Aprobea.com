@@ -26,6 +26,14 @@ export default function RegistroPage() {
     nombre: '', apellidos: '', email: '', telefono: '',
     tipo_inversor: 'crowdfunding', capital_inicial: '', password: '', codigo_referido: '',
   })
+
+  // Leer plan desde URL (?plan=gratuito)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const plan = params.get('plan')
+    if (plan === 'gratuito') setForm(f => ({ ...f, tipo_inversor: 'gratuito' }))
+  }, [])
   const [prefs, setPrefs] = useState({
     comunidades: [] as string[],
     capital: 0,
@@ -240,19 +248,32 @@ export default function RegistroPage() {
           <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></div>
           <div className="form-group"><label className="form-label">Contraseña</label><input type="password" className="form-input" required minLength={6} value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Mínimo 6 caracteres" /></div>
           <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={form.telefono} onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))} placeholder="+34 600 000 000" /></div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Tipo de inversión</label>
-              <select className="form-input" value={form.tipo_inversor} onChange={e => setForm(f => ({ ...f, tipo_inversor: e.target.value }))}>
-                <option value="crowdfunding">Crowdfunding</option>
-                <option value="npl">NPL</option>
-              </select>
+          {form.tipo_inversor === 'gratuito' ? (
+            <div className="form-group" style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '0.85rem 1rem', marginBottom: '0.75rem' }}>
+              <div style={{ fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '4px' }}>Plan seleccionado</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-0)', fontWeight: 500 }}>✦ Cuenta Gratuita</span>
+                <button type="button" onClick={() => setForm(f => ({ ...f, tipo_inversor: 'crowdfunding' }))}
+                  style={{ fontSize: '10px', color: 'var(--gold-200)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Cambiar plan
+                </button>
+              </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Capital inicial (€)</label>
-              <input type="number" className="form-input" value={form.capital_inicial} onChange={e => setForm(f => ({ ...f, capital_inicial: e.target.value }))} placeholder="0" />
+          ) : (
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Tipo de inversión</label>
+                <select className="form-input" value={form.tipo_inversor} onChange={e => setForm(f => ({ ...f, tipo_inversor: e.target.value }))}>
+                  <option value="crowdfunding">Crowdfunding</option>
+                  <option value="npl">NPL</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Capital inicial (€)</label>
+                <input type="number" className="form-input" value={form.capital_inicial} onChange={e => setForm(f => ({ ...f, capital_inicial: e.target.value }))} placeholder="0" />
+              </div>
             </div>
-          </div>
+          )}
           <div className="form-group">
             <label className="form-label">Código de referido (opcional)</label>
             <input className="form-input" value={form.codigo_referido} onChange={e => setForm(f => ({ ...f, codigo_referido: e.target.value }))} placeholder="Ej: SL-ABC12" style={{ textTransform: 'uppercase' }} />

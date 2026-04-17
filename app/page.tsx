@@ -554,6 +554,47 @@ export default function Home() {
           Gestión documental, chat con tu equipo, seguimiento de inversiones y mucho más desde un único panel privado.
         </p>
         <div className="register-grid">
+
+          {/* ── PLAN GRATUITO ── */}
+          <div className="register-card reveal">
+            <span className="reg-badge">Explorador · Gratuito</span>
+            <h3 className="reg-title serif"
+              data-es="Cuenta Gratuita" data-en="Free Account">
+              Cuenta Gratuita
+            </h3>
+            <p className="reg-desc"
+              data-es="Explora la plataforma sin coste. Regístrate, descubre el marketplace y contacta con el equipo cuando estés listo para invertir."
+              data-en="Explore the platform at no cost. Sign up, discover the marketplace and contact the team when you're ready to invest."
+            >
+              Explora la plataforma sin coste. Regístrate, descubre el marketplace y contacta con el equipo cuando estés listo para invertir.
+            </p>
+
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius)', padding: '0.9rem 1rem', margin: '1rem 0' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '3px' }}>
+                <span style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)' }}>Gratis</span>
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', lineHeight: 1.5 }}>
+                Sin compromiso · Sin tarjeta de crédito
+              </div>
+            </div>
+
+            <ul className="reg-features">
+              <li>Dashboard e información general</li>
+              <li>Marketplace (visualización)</li>
+              <li>Mis inversiones</li>
+              <li>Mensajes con el equipo</li>
+              <li>Perfil personal</li>
+              <li style={{ opacity: 0.4, textDecoration: 'line-through' }}>Referidos y comisiones</li>
+              <li style={{ opacity: 0.4, textDecoration: 'line-through' }}>Calendario de inversiones</li>
+              <li style={{ opacity: 0.4, textDecoration: 'line-through' }}>Asistente IA personalizado</li>
+            </ul>
+
+            <a href="/registro?plan=gratuito" className="btn-register" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', padding: '14px', borderRadius: '10px', background: 'transparent', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)', fontSize: '0.82rem', letterSpacing: '0.06em', cursor: 'pointer', transition: 'all 0.2s' }}
+              data-es="Crear cuenta gratuita" data-en="Create free account">
+              Crear cuenta gratuita →
+            </a>
+          </div>
+
           <div className="register-card featured reveal">
             <span className="reg-badge" data-es="Inversor NPL · Premium" data-en="NPL · Premium Investor">Inversor NPL · Premium</span>
             <h3 className="reg-title serif" data-es="Cuenta Inversor Premium" data-en="Premium Investor Account">Cuenta Inversor Premium</h3>
