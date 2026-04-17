@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 
 type KPI = {
   aum: number
@@ -17,6 +17,14 @@ type KPI = {
 }
 
 type SerieItem = { label: string; valor: number }
+
+type PHStats = {
+  stats7d:   { pageviews: number; visitors: number; sessions: number }
+  stats30d:  { pageviews: number; visitors: number }
+  bounceRate: number
+  topPages:   { path: string; views: number; uniq: number }[]
+  dailyViews: { day: string; pageviews: number; visitors: number }[]
+}
 
 const GOLD = '#C9A043'
 const PIE_COLORS = ['#C9A043', '#b87333', '#6dc86d', '#888']
@@ -54,6 +62,11 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState('')
 
+  // PostHog
+  const [ph, setPh]           = useState<PHStats | null>(null)
+  const [phLoading, setPhLoading] = useState(true)
+  const [phError, setPhError] = useState('')
+
   async function load() {
     setLoading(true)
     const res = await fetch('/api/backoffice/analytics')
@@ -68,8 +81,18 @@ export default function AnalyticsPage() {
     setLoading(false)
   }
 
+  async function loadPH() {
+    setPhLoading(true); setPhError('')
+    const res = await fetch('/api/backoffice/posthog')
+    const data = await res.json()
+    if (!res.ok) { setPhError(data.error ?? 'Error PostHog'); setPhLoading(false); return }
+    setPh(data)
+    setPhLoading(false)
+  }
+
   useEffect(() => {
     load()
+    loadPH()
     const interval = setInterval(load, 30000) // refresca cada 30s
     return () => clearInterval(interval)
   }, [])
@@ -223,20 +246,112 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* PostHog link */}
-          <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)', marginBottom: '4px' }}>Analytics de comportamiento</div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>Sesiones en tiempo real, grabaciones, heatmaps y embudos de conversión en PostHog</div>
+          {/* ── SECCIÓN POSTHOG ── */}
+          <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <div style={{ fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '3px' }}>Tráfico web · PostHog</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>Datos en tiempo real del sitio público y del dashboard</div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button onClick={loadPH} style={{ background: 'rgba(201,160,67,0.08)', border: '0.5px solid rgba(201,160,67,0.3)', color: 'var(--gold-200)', padding: '6px 14px', borderRadius: '7px', fontSize: '10px', cursor: 'pointer', letterSpacing: '0.06em' }}>
+                  ↺ Actualizar
+                </button>
+                <a href="https://eu.posthog.com" target="_blank" rel="noopener noreferrer"
+                  style={{ background: 'var(--gold-200)', color: 'var(--bg-0)', padding: '6px 14px', borderRadius: '7px', fontSize: '10px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  Ver en PostHog ↗
+                </a>
+              </div>
             </div>
-            <a
-              href="https://eu.posthog.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ background: 'var(--gold-200)', color: 'var(--bg-0)', padding: '10px 24px', borderRadius: '8px', fontSize: '11px', fontWeight: 700, textDecoration: 'none', letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}
-            >
-              Abrir PostHog →
-            </a>
+
+            {phError ? (
+              <div style={{ background: 'rgba(220,50,50,0.08)', border: '0.5px solid rgba(220,50,50,0.3)', borderRadius: '12px', padding: '1.25rem 1.5rem', fontSize: '0.82rem', color: '#e05656' }}>
+                ⚠ {phError}
+                {phError.includes('no configurado') && (
+                  <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-3)', lineHeight: 1.6 }}>
+                    Añade <code style={{ background: 'var(--bg-3)', padding: '1px 6px', borderRadius: '4px' }}>POSTHOG_PERSONAL_API_KEY</code> y <code style={{ background: 'var(--bg-3)', padding: '1px 6px', borderRadius: '4px' }}>POSTHOG_PROJECT_ID</code> a las variables de entorno.
+                  </div>
+                )}
+              </div>
+            ) : phLoading ? (
+              <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '1.5rem 0' }}>Cargando datos de PostHog…</div>
+            ) : ph && (
+              <>
+                {/* KPI row */}
+                <div className="rsp-grid-4" style={{ marginBottom: '1.5rem' }}>
+                  <StatCard label="Visitantes únicos (7d)" value={ph.stats7d.visitors.toLocaleString('es-ES')} sub={`${ph.stats30d.visitors.toLocaleString('es-ES')} en 30 días`} highlight />
+                  <StatCard label="Pageviews (7d)"         value={ph.stats7d.pageviews.toLocaleString('es-ES')} sub={`${ph.stats30d.pageviews.toLocaleString('es-ES')} en 30 días`} />
+                  <StatCard label="Sesiones (7d)"          value={ph.stats7d.sessions.toLocaleString('es-ES')} sub={`Páginas/sesión: ${ph.stats7d.sessions > 0 ? (ph.stats7d.pageviews / ph.stats7d.sessions).toFixed(1) : '—'}`} />
+                  <StatCard label="Tasa de rebote (7d)"    value={`${ph.bounceRate}%`} sub="Sesiones de 1 sola página" />
+                </div>
+
+                {/* Chart + Top páginas */}
+                <div className="rsp-grid-2" style={{ marginBottom: '1rem' }}>
+                  {/* Gráfico diario */}
+                  <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)', marginBottom: '0.25rem' }}>Tráfico diario</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginBottom: '1.5rem' }}>Pageviews y visitantes · últimos 30 días</div>
+                    {ph.dailyViews.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', padding: '2rem 0' }}>Sin datos</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={180}>
+                        <AreaChart data={ph.dailyViews} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="pvGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor={GOLD} stopOpacity={0.3} />
+                              <stop offset="95%" stopColor={GOLD} stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="visGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor="#6dc86d" stopOpacity={0.2} />
+                              <stop offset="95%" stopColor="#6dc86d" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                          <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false}
+                            tickFormatter={v => v.slice(5)} interval="preserveStartEnd" />
+                          <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                          <Tooltip
+                            contentStyle={{ background: '#1a1610', border: '0.5px solid rgba(201,160,67,0.3)', borderRadius: '8px', fontSize: '11px' }}
+                            labelStyle={{ color: 'rgba(255,255,255,0.5)', marginBottom: '4px' }}
+                            itemStyle={{ color: GOLD }}
+                          />
+                          <Area type="monotone" dataKey="pageviews" name="Pageviews" stroke={GOLD} strokeWidth={2} fill="url(#pvGrad)" dot={false} activeDot={{ r: 4, fill: GOLD }} />
+                          <Area type="monotone" dataKey="visitors"  name="Visitantes" stroke="#6dc86d" strokeWidth={1.5} fill="url(#visGrad)" dot={false} activeDot={{ r: 3, fill: '#6dc86d' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+
+                  {/* Top páginas */}
+                  <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)', marginBottom: '0.25rem' }}>Páginas más vistas</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginBottom: '1.25rem' }}>Últimos 30 días · pageviews únicos</div>
+                    {ph.topPages.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', padding: '2rem 0' }}>Sin datos</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {ph.topPages.map((p, i) => {
+                          const maxViews = ph.topPages[0]?.views ?? 1
+                          const pct = Math.round((p.views / maxViews) * 100)
+                          const label = p.path === '' ? '/' : p.path.length > 38 ? p.path.slice(0, 38) + '…' : p.path
+                          return (
+                            <div key={i}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-2)', fontFamily: 'monospace' }}>{label}</span>
+                                <span style={{ fontSize: '11px', color: GOLD, fontWeight: 600 }}>{p.views.toLocaleString('es-ES')}</span>
+                              </div>
+                              <div style={{ height: '3px', background: 'var(--bg-3)', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg,${GOLD},#a07828)`, borderRadius: '2px' }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </>
       )}
