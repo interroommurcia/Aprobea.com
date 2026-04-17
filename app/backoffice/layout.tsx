@@ -97,8 +97,8 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     { href: '/backoffice/citas', label: 'Citas', icon: '📞' },
     { href: '/backoffice/leads', label: 'Leads SKYLLER', icon: '📥' },
     { href: '/backoffice/ia', label: 'IA Asistente', icon: '🤖' },
-    { href: '/backoffice/ia-privada', label: 'IA Privada', icon: '🔒' },
-    { href: '/backoffice/base-clientes', label: 'Base de clientes', icon: '📁' },
+    { href: '/backoffice/ia-privada', label: 'IA Privada', icon: '🔒', sub: true },
+    { href: '/backoffice/base-clientes', label: 'Base clientes', icon: '📁', sub: true },
     { href: '/backoffice/pagos', label: 'Pagos', icon: '💳' },
     { href: '/backoffice/configuracion', label: 'Configuración', icon: '⚙' },
   ]
@@ -118,17 +118,21 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
       </div>
       <nav style={{ flex: 1, padding: '1.5rem 0', overflowY: 'auto' }}>
         {navItems.map(item => {
-          const esCitas = item.href === '/backoffice/citas'
+          const esCitas  = item.href === '/backoffice/citas'
+          const isSub    = (item as any).sub === true
+          const isActive = pathname.startsWith(item.href)
           return (
             <Link key={item.href} href={item.href} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '0.65rem 1.5rem', fontSize: '0.83rem', textDecoration: 'none',
-              color: pathname.startsWith(item.href) ? 'var(--gold-100)' : 'var(--text-2)',
-              background: pathname.startsWith(item.href) ? 'rgba(201,160,67,0.08)' : 'transparent',
-              borderLeft: pathname.startsWith(item.href) ? '2px solid var(--gold-200)' : '2px solid transparent',
+              padding: isSub ? '0.45rem 1.5rem 0.45rem 2.5rem' : '0.65rem 1.5rem',
+              fontSize: isSub ? '0.77rem' : '0.83rem', textDecoration: 'none',
+              color: isActive ? 'var(--gold-100)' : isSub ? 'var(--text-3)' : 'var(--text-2)',
+              background: isActive ? 'rgba(201,160,67,0.08)' : 'transparent',
+              borderLeft: isActive ? '2px solid var(--gold-200)' : '2px solid transparent',
               transition: 'all 0.2s', position: 'relative',
             }}>
-              <span style={{ fontSize: '13px', opacity: 0.7 }}>{item.icon}</span>
+              {isSub && <span style={{ position: 'absolute', left: '1.5rem', top: '50%', transform: 'translateY(-50%)', width: '1px', height: '100%', background: 'var(--gold-border)' }} />}
+              <span style={{ fontSize: isSub ? '11px' : '13px', opacity: 0.7 }}>{item.icon}</span>
               {item.label}
               {esCitas && citasPendientes.length > 0 && (
                 <span style={{ marginLeft: 'auto', background: '#C9A043', color: '#0a0a0a', borderRadius: '10px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 }}>

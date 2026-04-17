@@ -1,7 +1,8 @@
 /**
  * POST /api/backoffice/ia-privada
- * IA privada del admin: 3 hilos con skills predeterminadas.
- * Tiene acceso a la base de clientes Excel via tool.
+ * IA privada del admin: hilos con skills personalizadas.
+ * Acepta systemPrompt directo (built-in o custom) + adjuntos PDF.
+ * Tool: buscar_clientes en base_clientes_excel.
  */
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
@@ -11,29 +12,20 @@ export const runtime = 'nodejs'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' })
 
+const DEFAULT_SYSTEM = `Eres el asistente ejecutivo privado del director de GrupoSkyLine Investment. Ayudas con análisis estratégico, comunicaciones, planificación y cualquier tarea ejecutiva. Tienes acceso a la base de contactos mediante la herramienta buscar_clientes. Eres conciso, profesional y directo. Respondes siempre en español.`
+
 function isAdmin(req: NextRequest) {
   return req.cookies.get('admin_session')?.value === '1'
-}
-
-const SKILLS: Record<string, string> = {
-  general: `Eres el asistente ejecutivo privado del director de GrupoSkyLine Investment. Tu rol es ayudar con análisis estratégico, redacción de comunicaciones corporativas, planificación de negocio, preparación de reuniones y cualquier tarea ejecutiva. Tienes acceso a la base de contactos y clientes potenciales de la empresa mediante la herramienta buscar_clientes. Eres conciso, profesional y directo. Respondes siempre en español.`,
-
-  analista: `Eres un analista inmobiliario y financiero senior especializado en activos NPL, crowdfunding inmobiliario y operaciones de inversión para GrupoSkyLine Investment. Tu rol es: analizar oportunidades de inversión, evaluar riesgo/rentabilidad, calcular ROI, comparar carteras NPL, interpretar datos del mercado inmobiliario español, redactar informes de due diligence y dar recomendaciones técnicas. Usas terminología financiera precisa. Respondes en español con rigor analítico.`,
-
-  comercial: `Eres el gestor comercial y de CRM de GrupoSkyLine Investment. Tu rol es ayudar con: captación de nuevos inversores, redacción de emails de seguimiento, scripts para llamadas comerciales, estrategias de cierre, gestión de pipeline de clientes potenciales y análisis de la base de contactos. Tienes acceso a la base de datos de clientes y contactos mediante la herramienta buscar_clientes — úsala para encontrar información sobre contactos existentes cuando sea relevante. Eres persuasivo, orientado a resultados y profesional. Responde en español.`,
 }
 
 const TOOLS: Anthropic.Tool[] = [
   {
     name: 'buscar_clientes',
-    description: 'Busca en la base de datos de clientes y contactos de GrupoSkyLine. Útil para encontrar información de contacto, historial o notas sobre un cliente o prospect. Devuelve hasta 10 resultados.',
+    description: 'Busca en la base de datos de clientes y contactos de GrupoSkyLine. Devuelve hasta 10 resultados con nombre, email, teléfono, empresa, ciudad y notas.',
     input_schema: {
       type: 'object' as const,
       properties: {
-        query: {
-          type: 'string',
-          description: 'Texto a buscar. Se busca en nombre, apellidos, email, teléfono y empresa.',
-        },
+        query: { type: 'string', description: 'Texto a buscar en nombre, apellidos, email, teléfono o empresa.' },
       },
       required: ['query'],
     },
@@ -51,14 +43,13 @@ async function runTool(name: string, input: Record<string, string>): Promise<str
 
     if (error) return `Error al buscar: ${error.message}`
     if (!data || data.length === 0) return 'No se encontraron contactos con esa búsqueda.'
-
     return data.map((c, i) =>
       `${i + 1}. ${[c.nombre, c.apellidos].filter(Boolean).join(' ')}` +
-      (c.empresa ? ` — ${c.empresa}` : '') +
-      (c.email ? ` | ${c.email}` : '') +
-      (c.telefono ? ` | ${c.telefono}` : '') +
-      (c.ciudad ? ` | ${c.ciudad}` : '') +
-      (c.notas ? `\n   Notas: ${c.notas}` : '')
+      (c.empresa  ? ` — ${c.empresa}`   : '') +
+      (c.email    ? ` | ${c.email}`     : '') +
+      (c.telefono ? ` | ${c.telefono}`  : '') +
+      (c.ciudad   ? ` | ${c.ciudad}`    : '') +
+      (c.notas    ? `\n   📝 ${c.notas}` : '')
     ).join('\n')
   }
   return 'Herramienta desconocida'
@@ -67,12 +58,12 @@ async function runTool(name: string, input: Record<string, string>): Promise<str
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
 
-  const { messages, skill = 'general' } = await req.json()
+  const { messages, systemPrompt, attachment } = await req.json()
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(JSON.stringify({ error: 'messages requerido' }), { status: 400 })
   }
 
-  const systemPrompt = SKILLS[skill] ?? SKILLS.general
+  const system = systemPrompt ?? DEFAULT_SYSTEM
   const encoder = new TextEncoder()
   const SSE_HEADERS = {
     'Content-Type': 'text/event-stream',
@@ -81,17 +72,49 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Agentic loop: resuelve tool calls antes de streamear
-    let currentMessages: Anthropic.MessageParam[] = messages.slice(-30)
-    let finalText = ''
+    // Construir mensajes para la API
+    let apiMessages: Anthropic.MessageParam[] = messages.slice(-30).map((m: { role: string; content: string }) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }))
 
+    // Inyectar PDF como document block en el último mensaje de usuario
+    if (attachment?.type === 'pdf' && attachment.data) {
+      const lastIdx = apiMessages.length - 1
+      const last    = apiMessages[lastIdx]
+      if (last?.role === 'user') {
+        apiMessages[lastIdx] = {
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: {
+                type: 'base64',
+                media_type: 'application/pdf',
+                data: attachment.data,
+              },
+              title: attachment.filename ?? 'documento.pdf',
+            } as any,
+            {
+              type: 'text',
+              text: typeof last.content === 'string' && last.content
+                ? last.content
+                : 'Analiza este documento y extrae los puntos más relevantes.',
+            },
+          ],
+        }
+      }
+    }
+
+    // Agentic loop para tool calls
+    let finalText = ''
     while (true) {
       const response = await anthropic.messages.create({
         model: 'claude-sonnet-4-5-20251001',
         max_tokens: 2000,
-        system: systemPrompt,
+        system,
         tools: TOOLS,
-        messages: currentMessages,
+        messages: apiMessages,
       })
 
       if (response.stop_reason === 'tool_use') {
@@ -105,10 +128,10 @@ export async function POST(req: NextRequest) {
             content: await runTool(tu.name, tu.input as Record<string, string>),
           }))
         )
-        currentMessages = [
-          ...currentMessages,
+        apiMessages = [
+          ...apiMessages,
           { role: 'assistant', content: response.content },
-          { role: 'user', content: toolResults },
+          { role: 'user',      content: toolResults },
         ]
         continue
       }
