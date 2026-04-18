@@ -50,6 +50,7 @@ export default function OperacionesPage() {
   const [catastroLoading, setCatastroLoading] = useState(false)
   const [catastroMsg, setCatastroMsg] = useState('')
   const [idealistaUrl, setIdealistaUrl] = useState<string | null>(null)
+  const [pdfRCMsg, setPdfRCMsg] = useState('')
   const [editingTickets, setEditingTickets] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState('')
@@ -246,8 +247,38 @@ export default function OperacionesPage() {
     setOps(prev => prev.filter(o => o.id !== op.id))
   }
 
-  async function buscarCatastro() {
-    const rc = form.referencia_catastral.trim().toUpperCase()
+  async function extractRCFromPDF(file: File): Promise<string | null> {
+    try {
+      const buf = await file.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let txt = ''
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i]
+        if ((b >= 32 && b <= 126) || b === 10 || b === 13) txt += String.fromCharCode(b)
+      }
+      // Ref catastral urbana: 7 dígitos + 2 letras + 4 dígitos + 1 letra + 4 dígitos + 2 letras = 20 chars
+      const match = txt.match(/\b(\d{7}[A-Z]{2}\d{4}[A-Z]\d{4}[A-Z]{2})\b/i)
+      return match ? match[1].toUpperCase() : null
+    } catch { return null }
+  }
+
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null
+    setFile(f); setPreviewBlob(null); setPreviewUrl(null); setPdfRCMsg('')
+    if (!f) return
+    const rc = await extractRCFromPDF(f)
+    if (rc) {
+      setPdfRCMsg(`🔍 Ref. catastral detectada: ${rc} — consultando Catastro…`)
+      setForm(prev => ({ ...prev, referencia_catastral: rc }))
+      await buscarCatastro(rc)
+      setPdfRCMsg(`✓ Ref. catastral detectada en el PDF: ${rc}`)
+    } else {
+      setPdfRCMsg('No se detectó ref. catastral en el PDF — introdúcela manualmente')
+    }
+  }
+
+  async function buscarCatastro(rcParam?: string) {
+    const rc = (rcParam ?? form.referencia_catastral).trim().toUpperCase()
     if (!rc) return
     setCatastroLoading(true); setCatastroMsg(''); setIdealistaUrl(null)
     try {
@@ -257,10 +288,11 @@ export default function OperacionesPage() {
       setForm(f => ({
         ...f,
         referencia_catastral: rc,
-        municipio:       data.municipio     ?? f.municipio,
-        provincia:       data.provincia     ?? f.provincia,
-        superficie:      data.superficie    != null ? String(data.superficie) : f.superficie,
-        tipo_propiedad:  data.tipo_propiedad ?? f.tipo_propiedad,
+        titulo:          !f.titulo && data.direccion ? data.direccion : f.titulo,
+        municipio:       data.municipio      ?? f.municipio,
+        provincia:       data.provincia      ?? f.provincia,
+        superficie:      data.superficie != null ? String(data.superficie) : f.superficie,
+        tipo_propiedad:  data.tipo_propiedad  ?? f.tipo_propiedad,
       }))
       if (data.idealistaUrl) setIdealistaUrl(data.idealistaUrl)
       setCatastroMsg('✓ Datos del Catastro cargados')
@@ -446,9 +478,23 @@ export default function OperacionesPage() {
               </div>
               {file && <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: '2px' }}>{(file.size / 1024 / 1024).toFixed(2)} MB</div>}
             </div>
-            <input ref={fileRef} type="file" accept=".pdf" onChange={e => { setFile(e.target.files?.[0] ?? null); setPreviewBlob(null); setPreviewUrl(null) }} style={{ display: 'none' }} />
+            <input ref={fileRef} type="file" accept=".pdf" onChange={onFileChange} style={{ display: 'none' }} />
           </label>
         </div>
+
+        {pdfRCMsg && (
+          <div style={{
+            fontSize: '11px', marginTop: '-0.75rem', marginBottom: '1rem',
+            padding: '8px 14px', borderRadius: '8px',
+            background: pdfRCMsg.startsWith('✓') ? 'rgba(109,200,109,0.07)' : pdfRCMsg.startsWith('🔍') ? 'rgba(201,160,67,0.07)' : 'rgba(255,255,255,0.04)',
+            border: `0.5px solid ${pdfRCMsg.startsWith('✓') ? 'rgba(109,200,109,0.3)' : pdfRCMsg.startsWith('🔍') ? 'rgba(201,160,67,0.3)' : 'rgba(255,255,255,0.08)'}`,
+            color: pdfRCMsg.startsWith('✓') ? '#6dc86d' : pdfRCMsg.startsWith('🔍') ? 'var(--gold-200)' : 'var(--text-3)',
+            display: 'flex', alignItems: 'center', gap: '8px',
+          }}>
+            {catastroLoading && <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', border: '1.5px solid rgba(201,160,67,0.3)', borderTopColor: 'var(--gold-200)', animation: 'spin 0.8s linear infinite' }} />}
+            {pdfRCMsg}
+          </div>
+        )}
 
         {error && <p style={{ fontSize: '0.8rem', color: '#e05', marginBottom: '1rem', background: 'rgba(238,0,85,0.07)', border: '0.5px solid rgba(238,0,85,0.2)', borderRadius: '10px', padding: '10px 14px' }}>{error}</p>}
 
