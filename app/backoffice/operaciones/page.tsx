@@ -156,7 +156,7 @@ export default function OperacionesPage() {
     setPreviewError('')
     try {
       const out  = await processPdfClient(file, zones, branding)
-      const blob = new Blob([out], { type: 'application/pdf' })
+      const blob = new Blob([out.buffer as ArrayBuffer], { type: 'application/pdf' })
       setPreviewBlob(blob)
       if (previewUrl) URL.revokeObjectURL(previewUrl)
       setPreviewUrl(URL.createObjectURL(blob))
