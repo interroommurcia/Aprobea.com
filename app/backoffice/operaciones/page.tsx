@@ -6,6 +6,7 @@ import type { PDFZone } from '@/components/PDFVisualEditor'
 import TicketProgress from '@/components/TicketProgress'
 
 const PDFVisualEditor = dynamic(() => import('@/components/PDFVisualEditor'), { ssr: false, loading: () => <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '2rem', textAlign: 'center' }}>Cargando editor…</div> })
+const PropertyMap = dynamic(() => import('@/components/PropertyMap'), { ssr: false })
 
 type Operacion = {
   id: string; titulo: string; descripcion: string; tipo: string
@@ -437,24 +438,10 @@ export default function OperacionesPage() {
               <div style={{ fontSize: '11px', marginTop: '6px', color: catastroMsg.startsWith('✓') ? '#6dc86d' : '#e8a020', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {catastroMsg}
                 {idealistaUrl && <a href={idealistaUrl} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Ver en Idealista ↗</a>}
-                {catastroCoords && (
-                  <>
-                    <a href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${catastroCoords.lat},${catastroCoords.lon}`} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Street View ↗</a>
-                    <a href={`https://maps.google.com/?q=${catastroCoords.lat},${catastroCoords.lon}&z=18`} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Google Maps ↗</a>
-                  </>
-                )}
               </div>
             )}
             {catastroCoords && catastroMsg.startsWith('✓') && (
-              <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-                <iframe
-                  title="Localización catastral"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${catastroCoords.lon - 0.003},${catastroCoords.lat - 0.002},${catastroCoords.lon + 0.003},${catastroCoords.lat + 0.002}&layer=mapnik&marker=${catastroCoords.lat},${catastroCoords.lon}`}
-                  width="100%" height="220"
-                  style={{ border: 'none', display: 'block' }}
-                  loading="lazy"
-                />
-              </div>
+              <PropertyMap lat={catastroCoords.lat} lon={catastroCoords.lon} address={form.titulo || undefined} />
             )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
