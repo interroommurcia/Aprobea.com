@@ -66,10 +66,11 @@ export async function POST(req: NextRequest) {
 
   if (!titulo || !tipo) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
 
-  let pdf_url = null
-  let pdf_nombre = null
+  // Accept either a pre-uploaded URL (client-side upload) or a raw file
+  let pdf_url: string | null = (form.get('pdf_url') as string) || null
+  let pdf_nombre: string | null = (form.get('pdf_nombre') as string) || null
 
-  if (file && file.size > 0) {
+  if (!pdf_url && file && file.size > 0) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     const filename = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`
@@ -138,17 +139,19 @@ export async function PATCH(req: NextRequest) {
       .eq('id', id)
       .single()
 
-    let pdf_url    = existing?.pdf_url    ?? null
-    let pdf_nombre = existing?.pdf_nombre ?? null
+    // Accept either a pre-uploaded URL (client-side upload) or a raw file
+    const preUploadedUrl    = (form.get('pdf_url')    as string) || null
+    const preUploadedNombre = (form.get('pdf_nombre') as string) || null
+    let pdf_url    = preUploadedUrl    ?? existing?.pdf_url    ?? null
+    let pdf_nombre = preUploadedNombre ?? existing?.pdf_nombre ?? null
 
-    if (file && file.size > 0) {
+    if (!preUploadedUrl && file && file.size > 0) {
       // Borrar archivo antiguo de storage
       if (existing?.pdf_url) {
         const oldName = existing.pdf_url.split('/').pop()
         if (oldName) await supabaseAdmin.storage.from('operaciones-pdf').remove([oldName])
       }
 
-      // Subir nuevo archivo
       const bytes    = await file.arrayBuffer()
       const buffer   = Buffer.from(bytes)
       const filename = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import type { PDFZone } from '@/components/PDFVisualEditor'
 import { processPdfClient } from '@/lib/processPdf'
+import { supabase } from '@/lib/supabase'
 import TicketProgress from '@/components/TicketProgress'
 
 const PDFVisualEditor = dynamic(() => import('@/components/PDFVisualEditor'), { ssr: false, loading: () => <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '2rem', textAlign: 'center' }}>Cargando editor…</div> })
@@ -119,34 +120,50 @@ export default function OperacionesPage() {
     }
   }
 
+  // Upload PDF directly to Supabase Storage from the client (bypasses Vercel body limit)
+  async function uploadPdfDirect(blob: Blob, filename: string): Promise<{ publicUrl: string; path: string }> {
+    const tokenRes = await fetch('/api/backoffice/pdf-upload-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename }),
+    })
+    if (!tokenRes.ok) throw new Error('No se pudo obtener token de subida')
+    const { token, path, publicUrl } = await tokenRes.json()
+    const { error } = await supabase.storage.from('operaciones-pdf').uploadToSignedUrl(path, token, blob)
+    if (error) throw new Error(error.message)
+    return { publicUrl, path }
+  }
+
   // Guardar PDF procesado sobre una operación ya existente (re-edición)
   async function handleUpdateProcessed() {
     if (!previewBlob || !editingOp) return
     setUploading(true)
     setError('')
-    const name = (editingOp.pdf_nombre || 'documento.pdf').replace(/\.pdf$/i, '_redactado.pdf')
-    const processedFile = new File([previewBlob], name, { type: 'application/pdf' })
-    const fd = new FormData()
-    fd.append('id', editingOp.id)
-    fd.append('pdf', processedFile)
-    const res = await fetch('/api/backoffice/operaciones', { method: 'PATCH', body: fd })
-    if (res.ok) {
-      const data = await res.json()
-      setOps(prev => prev.map(o => o.id === editingOp.id
-        ? { ...o, pdf_url: data.pdf_url ?? o.pdf_url, pdf_nombre: data.pdf_nombre ?? o.pdf_nombre }
-        : o
-      ))
-      setShowEditor(false)
-      setEditingOp(null)
-      setPreviewUrl(null)
-      setPreviewBlob(null)
-      setOk(true)
-      setTimeout(() => setOk(false), 3000)
-    } else {
-      const d = await res.json()
-      setError(d.error || 'Error al guardar el PDF')
+    try {
+      const name = (editingOp.pdf_nombre || 'documento.pdf').replace(/\.pdf$/i, '_redactado.pdf')
+      const { publicUrl } = await uploadPdfDirect(previewBlob, name)
+      const fd = new FormData()
+      fd.append('id', editingOp.id)
+      fd.append('pdf_url', publicUrl)
+      fd.append('pdf_nombre', name)
+      const res = await fetch('/api/backoffice/operaciones', { method: 'PATCH', body: fd })
+      if (res.ok) {
+        const data = await res.json()
+        setOps(prev => prev.map(o => o.id === editingOp.id
+          ? { ...o, pdf_url: data.pdf_url ?? o.pdf_url, pdf_nombre: data.pdf_nombre ?? o.pdf_nombre }
+          : o
+        ))
+        setShowEditor(false); setEditingOp(null); setPreviewUrl(null); setPreviewBlob(null)
+        setOk(true); setTimeout(() => setOk(false), 3000)
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || 'Error al guardar el PDF')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Error al subir el PDF')
+    } finally {
+      setUploading(false)
     }
-    setUploading(false)
   }
 
   // Generate preview client-side (avoids server body size limits)
@@ -172,32 +189,35 @@ export default function OperacionesPage() {
     if (!previewBlob) return
     setUploading(true)
     setError('')
-    const processedFile = new File([previewBlob], file!.name.replace('.pdf', '_redactado.pdf'), { type: 'application/pdf' })
-    const fd = new FormData()
-    fd.append('titulo', form.titulo)
-    fd.append('descripcion', form.descripcion)
-    fd.append('tipo', form.tipo)
-    fd.append('tickets_total', form.tickets_total || '10')
-    fd.append('tickets_por_participante', form.tickets_por_participante || '1')
-    if (form.importe_objetivo) fd.append('importe_objetivo', form.importe_objetivo)
-    appendPropertyFields(fd)
-    fd.append('pdf', processedFile)
-    const res = await fetch('/api/backoffice/operaciones', { method: 'POST', body: fd })
-    if (res.ok) {
-      setForm(EMPTY_FORM)
-      setFile(null)
-      if (fileRef.current) fileRef.current.value = ''
-      setShowEditor(false)
-      setPreviewUrl(null)
-      setPreviewBlob(null)
-      setOk(true)
-      setTimeout(() => setOk(false), 3000)
-      load()
-    } else {
-      const d = await res.json()
-      setError(d.error || 'Error al publicar')
+    try {
+      const name = file!.name.replace(/\.pdf$/i, '_redactado.pdf')
+      const { publicUrl } = await uploadPdfDirect(previewBlob, name)
+      const fd = new FormData()
+      fd.append('titulo', form.titulo)
+      fd.append('descripcion', form.descripcion)
+      fd.append('tipo', form.tipo)
+      fd.append('tickets_total', form.tickets_total || '10')
+      fd.append('tickets_por_participante', form.tickets_por_participante || '1')
+      if (form.importe_objetivo) fd.append('importe_objetivo', form.importe_objetivo)
+      appendPropertyFields(fd)
+      fd.append('pdf_url', publicUrl)
+      fd.append('pdf_nombre', name)
+      const res = await fetch('/api/backoffice/operaciones', { method: 'POST', body: fd })
+      if (res.ok) {
+        setForm(EMPTY_FORM); setFile(null)
+        if (fileRef.current) fileRef.current.value = ''
+        setShowEditor(false); setPreviewUrl(null); setPreviewBlob(null)
+        setOk(true); setTimeout(() => setOk(false), 3000)
+        load()
+      } else {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || 'Error al publicar')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Error al subir el PDF')
+    } finally {
+      setUploading(false)
     }
-    setUploading(false)
   }
 
   // Publish original (sin redactar)
