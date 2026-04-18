@@ -23,10 +23,7 @@ export default function PagosPage() {
   const [saved, setSaved]     = useState(false)
   const [error, setError]     = useState('')
 
-  const stripeConfigured = !!(
-    process.env.NEXT_PUBLIC_STRIPE_CONFIGURED === 'true' ||
-    (typeof window !== 'undefined' && (window as any).__stripeOk)
-  )
+  const stripeConfigured = !!(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
 
   useEffect(() => {
     fetch('/api/backoffice/config')
