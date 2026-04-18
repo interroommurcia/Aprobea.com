@@ -379,7 +379,7 @@ export default function OperacionesPage() {
             <label className="bo-label">Referencia Catastral</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <input className="bo-input" value={form.referencia_catastral} onChange={e => setForm(f => ({ ...f, referencia_catastral: e.target.value.toUpperCase() }))} placeholder="Ej: 5237101WG9153S0025FK" style={{ flex: 1, fontFamily: 'monospace', letterSpacing: '0.05em' }} />
-              <button type="button" onClick={buscarCatastro} disabled={!form.referencia_catastral || catastroLoading} className="bo-btn bo-btn-ghost" style={{ flexShrink: 0 }}>
+              <button type="button" onClick={() => buscarCatastro()} disabled={!form.referencia_catastral || catastroLoading} className="bo-btn bo-btn-ghost" style={{ flexShrink: 0 }}>
                 {catastroLoading ? '⏳ Buscando…' : '🏛 Consultar Catastro'}
               </button>
             </div>
