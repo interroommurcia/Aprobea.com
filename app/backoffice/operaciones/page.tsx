@@ -249,16 +249,12 @@ export default function OperacionesPage() {
 
   async function extractRCFromPDF(file: File): Promise<string | null> {
     try {
-      const buf = await file.arrayBuffer()
-      const bytes = new Uint8Array(buf)
-      let txt = ''
-      for (let i = 0; i < bytes.length; i++) {
-        const b = bytes[i]
-        if ((b >= 32 && b <= 126) || b === 10 || b === 13) txt += String.fromCharCode(b)
-      }
-      // Ref catastral urbana: 7 dígitos + 2 letras + 4 dígitos + 1 letra + 4 dígitos + 2 letras = 20 chars
-      const match = txt.match(/\b(\d{7}[A-Z]{2}\d{4}[A-Z]\d{4}[A-Z]{2})\b/i)
-      return match ? match[1].toUpperCase() : null
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await fetch('/api/extract-rc', { method: 'POST', body: fd })
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.rc ?? null
     } catch { return null }
   }
 
@@ -266,6 +262,7 @@ export default function OperacionesPage() {
     const f = e.target.files?.[0] ?? null
     setFile(f); setPreviewBlob(null); setPreviewUrl(null); setPdfRCMsg('')
     if (!f) return
+    setPdfRCMsg('🔍 Analizando PDF…')
     const rc = await extractRCFromPDF(f)
     if (rc) {
       setPdfRCMsg(`🔍 Ref. catastral detectada: ${rc} — consultando Catastro…`)

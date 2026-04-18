@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
     // Parse detail XML
     const errCode = extractXml(detailXml, 'cod')
     if (errCode && errCode !== '0') {
-      return NextResponse.json({ error: `Catastro: código de error ${errCode}` }, { status: 404 })
+      const errMsg: Record<string, string> = {
+        '1': 'Referencia catastral vacía',
+        '17': 'Referencia catastral no encontrada — verifica que los 20 caracteres sean correctos',
+        '43': 'Referencia catastral con formato incorrecto',
+      }
+      return NextResponse.json({ error: errMsg[errCode] ?? `Catastro: código de error ${errCode}` }, { status: 404 })
     }
 
     const direccion = extractXml(detailXml, 'ldt') ?? ''
