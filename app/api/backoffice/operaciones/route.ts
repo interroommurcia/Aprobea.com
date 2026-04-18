@@ -179,14 +179,34 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true, pdf_url, pdf_nombre })
   }
 
-  // ── Modo JSON: actualización de campos simples ─────────────────────────────
-  const { id, activa, tickets_total, tickets_por_participante, importe_objetivo } = await req.json()
+  // ── Modo JSON: actualización de campos ────────────────────────────────────
+  const body = await req.json()
+  const { id, activa, tickets_total, tickets_por_participante, importe_objetivo,
+    titulo, descripcion, tipo, referencia_catastral, municipio, provincia,
+    comunidad_autonoma, superficie, tipo_propiedad, valor_mercado, precio_compra,
+    comision, rentabilidad, ticket_minimo, imagen_principal, publico } = body
 
   const update: Record<string, unknown> = {}
   if (activa !== undefined)                   update.activa = activa
   if (tickets_total !== undefined)            update.tickets_total = tickets_total
   if (tickets_por_participante !== undefined) update.tickets_por_participante = tickets_por_participante
   if (importe_objetivo !== undefined)         update.importe_objetivo = importe_objetivo
+  if (titulo !== undefined)                   update.titulo = titulo
+  if (descripcion !== undefined)              update.descripcion = descripcion
+  if (tipo !== undefined)                     update.tipo = tipo
+  if (referencia_catastral !== undefined)     update.referencia_catastral = referencia_catastral || null
+  if (municipio !== undefined)                update.municipio = municipio || null
+  if (provincia !== undefined)                update.provincia = provincia || null
+  if (comunidad_autonoma !== undefined)       update.comunidad_autonoma = comunidad_autonoma || null
+  if (superficie !== undefined)               update.superficie = superficie || null
+  if (tipo_propiedad !== undefined)           update.tipo_propiedad = tipo_propiedad || null
+  if (valor_mercado !== undefined)            update.valor_mercado = valor_mercado || null
+  if (precio_compra !== undefined)            update.precio_compra = precio_compra || null
+  if (comision !== undefined)                 update.comision = comision || null
+  if (rentabilidad !== undefined)             update.rentabilidad = rentabilidad || null
+  if (ticket_minimo !== undefined)            update.ticket_minimo = ticket_minimo || null
+  if (imagen_principal !== undefined)         update.imagen_principal = imagen_principal || null
+  if (publico !== undefined)                  update.publico = publico
 
   const { error } = await supabaseAdmin.from('operaciones_estudiadas').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

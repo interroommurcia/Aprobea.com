@@ -76,6 +76,9 @@ export default function OperacionesPage() {
   // Re-editar operación publicada
   const [editingOp, setEditingOp] = useState<Operacion | null>(null)
   const [fetchingPdfOp, setFetchingPdfOp] = useState<string | null>(null)
+  const [editOpModal, setEditOpModal] = useState<Operacion | null>(null)
+  const [editOpForm, setEditOpForm] = useState<typeof EMPTY_FORM | null>(null)
+  const [savingOp, setSavingOp] = useState(false)
 
   function load() {
     setLoading(true)
@@ -246,6 +249,63 @@ export default function OperacionesPage() {
       setError(d.error || 'Error al subir')
     }
     setUploading(false)
+  }
+
+  function openOpEdit(op: Operacion) {
+    setEditOpModal(op)
+    setEditOpForm({
+      titulo: op.titulo ?? '', descripcion: op.descripcion ?? '', tipo: op.tipo ?? 'crowdfunding',
+      tickets_total: String(op.tickets_total ?? 10),
+      importe_objetivo: op.importe_objetivo != null ? String(op.importe_objetivo) : '',
+      tickets_por_participante: String(op.tickets_por_participante ?? 1),
+      referencia_catastral: op.referencia_catastral ?? '', municipio: op.municipio ?? '',
+      provincia: op.provincia ?? '', comunidad_autonoma: op.comunidad_autonoma ?? '',
+      superficie: op.superficie != null ? String(op.superficie) : '',
+      tipo_propiedad: op.tipo_propiedad ?? 'Residencial',
+      valor_mercado: op.valor_mercado != null ? String(op.valor_mercado) : '',
+      precio_compra: op.precio_compra != null ? String(op.precio_compra) : '',
+      comision: op.comision != null ? String(op.comision) : '',
+      rentabilidad: op.rentabilidad != null ? String(op.rentabilidad) : '',
+      ticket_minimo: op.ticket_minimo != null ? String(op.ticket_minimo) : '',
+      imagen_principal: op.imagen_principal ?? '',
+      publico: op.publico ? 'true' : 'false',
+    })
+  }
+
+  async function saveOpEdit() {
+    if (!editOpModal || !editOpForm) return
+    setSavingOp(true)
+    const f = editOpForm
+    const body = {
+      id: editOpModal.id,
+      titulo: f.titulo, descripcion: f.descripcion, tipo: f.tipo,
+      tickets_total: parseInt(f.tickets_total) || 10,
+      tickets_por_participante: parseInt(f.tickets_por_participante) || 1,
+      importe_objetivo: f.importe_objetivo ? parseFloat(f.importe_objetivo) : null,
+      referencia_catastral: f.referencia_catastral || null,
+      municipio: f.municipio || null, provincia: f.provincia || null,
+      comunidad_autonoma: f.comunidad_autonoma || null,
+      superficie: f.superficie ? parseFloat(f.superficie) : null,
+      tipo_propiedad: f.tipo_propiedad || null,
+      valor_mercado: f.valor_mercado ? parseFloat(f.valor_mercado) : null,
+      precio_compra: f.precio_compra ? parseFloat(f.precio_compra) : null,
+      comision: f.comision ? parseFloat(f.comision) : null,
+      rentabilidad: f.rentabilidad ? parseFloat(f.rentabilidad) : null,
+      ticket_minimo: f.ticket_minimo ? parseFloat(f.ticket_minimo) : null,
+      imagen_principal: f.imagen_principal || null,
+      publico: f.publico !== 'false',
+    }
+    const res = await fetch('/api/backoffice/operaciones', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    })
+    if (res.ok) {
+      setOps(prev => prev.map(o => o.id === editOpModal.id ? { ...o, ...body } : o))
+      setEditOpModal(null); setEditOpForm(null)
+    } else {
+      const d = await res.json().catch(() => ({}))
+      alert(d.error || 'Error al guardar')
+    }
+    setSavingOp(false)
   }
 
   async function toggleActiva(op: Operacion) {
@@ -637,6 +697,9 @@ export default function OperacionesPage() {
                         </button>
                       </>
                     )}
+                    <button onClick={() => openOpEdit(op)} className="bo-btn bo-btn-ghost bo-btn-sm" title="Editar todos los datos">
+                      ✏ Editar
+                    </button>
                     <button onClick={() => toggleActiva(op)} className={`bo-btn bo-btn-sm ${op.activa ? 'bo-btn-success' : 'bo-btn-neutral'}`}>
                       {op.activa ? '● Activa' : '○ Oculta'}
                     </button>
@@ -687,6 +750,98 @@ export default function OperacionesPage() {
           </div>
         )}
       </div>
+
+      {/* ── Edit Operación Modal ────────────────────────────── */}
+      {editOpModal && editOpForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '2rem 1rem' }}>
+          <div style={{ background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', width: '100%', maxWidth: '700px', padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 className="serif" style={{ fontSize: '1.3rem', fontWeight: 300, color: 'var(--text-0)', margin: 0 }}>Editar operación</h2>
+              <button onClick={() => { setEditOpModal(null); setEditOpForm(null) }} className="bo-btn bo-btn-ghost bo-btn-sm">✕</button>
+            </div>
+
+            {/* Identificación */}
+            <div style={{ background: 'var(--bg-0)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1rem', border: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '0.875rem' }}>Identificación</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
+                <div><label className="bo-label">Título *</label><input className="bo-input" value={editOpForm.titulo} onChange={e => setEditOpForm(f => f && ({ ...f, titulo: e.target.value }))} /></div>
+                <div><label className="bo-label">Tipo</label>
+                  <select className="bo-input" value={editOpForm.tipo} onChange={e => setEditOpForm(f => f && ({ ...f, tipo: e.target.value }))}>
+                    <option value="crowdfunding">Crowdfunding</option>
+                    <option value="npl">NPL</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
+                <div><label className="bo-label">Tipo de propiedad</label>
+                  <select className="bo-input" value={editOpForm.tipo_propiedad} onChange={e => setEditOpForm(f => f && ({ ...f, tipo_propiedad: e.target.value }))}>
+                    {['Residencial','Comercial','Industrial','Suelo','Oficinas','Garaje','Otro'].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div><label className="bo-label">Visibilidad</label>
+                  <select className="bo-input" value={editOpForm.publico} onChange={e => setEditOpForm(f => f && ({ ...f, publico: e.target.value }))}>
+                    <option value="true">🌐 Público</option>
+                    <option value="false">🔒 Privado</option>
+                  </select>
+                </div>
+              </div>
+              <div><label className="bo-label">Descripción</label>
+                <textarea className="bo-input" value={editOpForm.descripcion} onChange={e => setEditOpForm(f => f && ({ ...f, descripcion: e.target.value }))} rows={2} style={{ resize: 'vertical' }} />
+              </div>
+            </div>
+
+            {/* Ubicación */}
+            <div style={{ background: 'var(--bg-0)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1rem', border: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '0.875rem' }}>Ubicación del activo</div>
+              <div style={{ marginBottom: '0.875rem' }}><label className="bo-label">Referencia Catastral</label>
+                <input className="bo-input" value={editOpForm.referencia_catastral} onChange={e => setEditOpForm(f => f && ({ ...f, referencia_catastral: e.target.value.toUpperCase() }))} style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
+                <div><label className="bo-label">Municipio</label><input className="bo-input" value={editOpForm.municipio} onChange={e => setEditOpForm(f => f && ({ ...f, municipio: e.target.value.toUpperCase() }))} /></div>
+                <div><label className="bo-label">Provincia</label><input className="bo-input" value={editOpForm.provincia} onChange={e => setEditOpForm(f => f && ({ ...f, provincia: e.target.value.toUpperCase() }))} /></div>
+                <div><label className="bo-label">Superficie (m²)</label><input className="bo-input" type="number" step="0.01" value={editOpForm.superficie} onChange={e => setEditOpForm(f => f && ({ ...f, superficie: e.target.value }))} /></div>
+              </div>
+              <div><label className="bo-label">Comunidad Autónoma</label>
+                <select className="bo-input" value={editOpForm.comunidad_autonoma} onChange={e => setEditOpForm(f => f && ({ ...f, comunidad_autonoma: e.target.value }))}>
+                  <option value="">— Sin especificar —</option>
+                  {['Andalucía','Aragón','Asturias','Islas Baleares','Canarias','Cantabria','Castilla-La Mancha','Castilla y León','Cataluña','Comunitat Valenciana','Extremadura','Galicia','La Rioja','Madrid','Murcia','Navarra','País Vasco'].map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Financiero */}
+            <div style={{ background: 'var(--bg-0)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1rem', border: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '0.875rem' }}>Datos financieros</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem', marginBottom: '0.875rem' }}>
+                <div><label className="bo-label">Valor de mercado (€)</label><input className="bo-input" type="number" step="100" value={editOpForm.valor_mercado} onChange={e => setEditOpForm(f => f && ({ ...f, valor_mercado: e.target.value }))} /></div>
+                <div><label className="bo-label">Precio de compra (€)</label><input className="bo-input" type="number" step="100" value={editOpForm.precio_compra} onChange={e => setEditOpForm(f => f && ({ ...f, precio_compra: e.target.value }))} /></div>
+                <div><label className="bo-label" style={{ color: 'var(--gold-200)' }}>Comisión (€)</label><input className="bo-input" type="number" step="100" value={editOpForm.comision} onChange={e => setEditOpForm(f => f && ({ ...f, comision: e.target.value }))} style={{ borderColor: 'rgba(201,160,67,0.4)' }} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+                <div><label className="bo-label">Rentabilidad (%)</label><input className="bo-input" type="number" step="0.01" value={editOpForm.rentabilidad} onChange={e => setEditOpForm(f => f && ({ ...f, rentabilidad: e.target.value }))} /></div>
+                <div><label className="bo-label">Ticket mínimo (€)</label><input className="bo-input" type="number" step="1000" value={editOpForm.ticket_minimo} onChange={e => setEditOpForm(f => f && ({ ...f, ticket_minimo: e.target.value }))} /></div>
+              </div>
+            </div>
+
+            {/* Tickets */}
+            <div style={{ background: 'var(--bg-0)', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.5rem', border: '0.5px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ fontSize: '9px', color: 'var(--text-3)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '0.875rem' }}>Tickets de participación</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.875rem' }}>
+                <div><label className="bo-label">Nº total de tickets</label><input className="bo-input" type="number" min="1" value={editOpForm.tickets_total} onChange={e => setEditOpForm(f => f && ({ ...f, tickets_total: e.target.value }))} /></div>
+                <div><label className="bo-label">Máx. por inversor</label><input className="bo-input" type="number" min="0" value={editOpForm.tickets_por_participante} onChange={e => setEditOpForm(f => f && ({ ...f, tickets_por_participante: e.target.value }))} /></div>
+                <div><label className="bo-label">Importe objetivo (€)</label><input className="bo-input" type="number" step="1000" value={editOpForm.importe_objetivo} onChange={e => setEditOpForm(f => f && ({ ...f, importe_objetivo: e.target.value }))} /></div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => { setEditOpModal(null); setEditOpForm(null) }} className="bo-btn bo-btn-neutral" disabled={savingOp}>Cancelar</button>
+              <button onClick={saveOpEdit} className="bo-btn bo-btn-success" disabled={savingOp || !editOpForm.titulo}>
+                {savingOp ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── PDF Editor Modal ────────────────────────────────── */}
       {showEditor && (
