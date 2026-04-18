@@ -27,9 +27,23 @@ export type MarketplaceOp = {
   tipo_propiedad: string | null
   imagen_principal: string | null
   publico: boolean
+  // Status & phase
+  estado_operacion: string | null
+  fase_hipotecaria: string | null
 }
 
 const TIPO_COLORS: Record<string, string> = { npl: '#b87333', crowdfunding: '#C9A043' }
+
+type EstadoStyle = { color: string; bg: string; border: string; label: string }
+function getEstadoStyle(op: MarketplaceOp, isFull: boolean): EstadoStyle {
+  const e = op.estado_operacion
+  if (e === 'finalizada') return { color: '#999', bg: 'rgba(153,153,153,0.15)', border: 'rgba(153,153,153,0.35)', label: '● Finalizada' }
+  if (e === 'completada') return { color: '#4a9eff', bg: 'rgba(74,158,255,0.15)', border: 'rgba(74,158,255,0.35)', label: '● Completada' }
+  if (e === 'reservada')  return { color: '#C9A043', bg: 'rgba(201,160,67,0.18)', border: 'rgba(201,160,67,0.5)', label: '● Reservada' }
+  if (isFull)             return { color: '#ee0055', bg: 'rgba(238,0,85,0.18)', border: '#ee0055', label: '● Cerrada' }
+  if (op.activa)          return { color: '#6dc86d', bg: 'rgba(109,200,109,0.18)', border: '#6dc86d', label: '● Activa' }
+  return { color: 'var(--text-3)', bg: 'rgba(62,59,53,0.6)', border: 'rgba(62,59,53,0.5)', label: '● Oculta' }
+}
 
 function eur(n: number | null | undefined) {
   if (n == null) return null
@@ -41,39 +55,35 @@ function fmtDate(s: string) {
 }
 
 export default function MarketplaceCard({
-  op, onVerPDF, userEmail, userId,
+  op, onVerPDF, userEmail, userId, onClick,
 }: {
   op: MarketplaceOp
   onVerPDF?: () => void
   userEmail?: string
   userId?: string
+  onClick?: () => void
 }) {
   const libre = Math.max((op.tickets_total ?? 0) - (op.tickets_vendidos ?? 0), 0)
   const isFull = op.tickets_total > 0 && libre === 0
   const rentDisplay = op.rentabilidad != null ? `${op.rentabilidad.toFixed(2)}%` : null
   const [reservando, setReservando] = useState(false)
   const [reservaError, setReservaError] = useState('')
+  const isFinalizada = op.estado_operacion === 'finalizada'
+  const estadoStyle = getEstadoStyle(op, isFull)
 
-  async function handleReservar() {
+  async function handleReservar(e: React.MouseEvent) {
+    e.stopPropagation()
     setReservando(true)
     setReservaError('')
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          operacion_id: op.id,
-          tipo: op.tipo,
-          user_id: userId,
-          email: userEmail,
-        }),
+        body: JSON.stringify({ operacion_id: op.id, tipo: op.tipo, user_id: userId, email: userEmail }),
       })
       const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        setReservaError(data.error ?? 'Error al iniciar el pago')
-      }
+      if (data.url) window.location.href = data.url
+      else setReservaError(data.error ?? 'Error al iniciar el pago')
     } catch {
       setReservaError('Error de conexión')
     } finally {
@@ -82,20 +92,25 @@ export default function MarketplaceCard({
   }
 
   return (
-    <div style={{
-      background: 'var(--bg-2)',
-      border: '0.5px solid var(--gold-border)',
-      borderRadius: '20px',
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
-    }}
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--bg-2)',
+        border: '0.5px solid var(--gold-border)',
+        borderRadius: '20px',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+        filter: isFinalizada ? 'grayscale(1)' : undefined,
+        opacity: isFinalizada ? 0.88 : 1,
+        cursor: onClick ? 'pointer' : undefined,
+      }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLDivElement
         el.style.transform = 'translateY(-3px)'
         el.style.boxShadow = '0 12px 40px rgba(0,0,0,0.4)'
-        el.style.borderColor = 'rgba(201,160,67,0.45)'
+        el.style.borderColor = isFinalizada ? 'rgba(150,150,150,0.3)' : 'rgba(201,160,67,0.45)'
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLDivElement
@@ -141,19 +156,19 @@ export default function MarketplaceCard({
           <span style={{
             padding: '4px 10px', borderRadius: '99px',
             fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: isFull ? '#ee0055' : op.activa ? '#6dc86d' : 'var(--text-3)',
-            background: isFull ? 'rgba(238,0,85,0.18)' : op.activa ? 'rgba(109,200,109,0.18)' : 'rgba(62,59,53,0.6)',
-            border: `0.5px solid ${isFull ? '#ee0055' : op.activa ? '#6dc86d' : 'rgba(62,59,53,0.5)'}`,
+            color: estadoStyle.color,
+            background: estadoStyle.bg,
+            border: `0.5px solid ${estadoStyle.border}`,
             backdropFilter: 'blur(8px)',
           }}>
-            ● {isFull ? 'Cerrada' : op.activa ? 'Activa' : 'Oculta'}
+            {estadoStyle.label}
           </span>
         </div>
 
-        {/* Gradient overlay at bottom */}
+        {/* Gradient overlay */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '80px', background: 'linear-gradient(to top, rgba(6,7,9,0.85), transparent)' }} />
 
-        {/* Location over image */}
+        {/* Location */}
         {(op.municipio || op.provincia) && (
           <div style={{ position: 'absolute', bottom: '12px', left: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gold-200)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -169,7 +184,7 @@ export default function MarketplaceCard({
       {/* ── Content ── */}
       <div style={{ padding: '1.25rem 1.375rem', display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
 
-        {/* Title — referencia catastral or titulo */}
+        {/* Title */}
         <div>
           <div style={{ fontWeight: 700, color: 'var(--text-0)', fontSize: '0.88rem', letterSpacing: '0.04em', marginBottom: '3px', lineHeight: 1.3 }}>
             {op.referencia_catastral || op.titulo}
@@ -241,7 +256,7 @@ export default function MarketplaceCard({
           />
         )}
 
-        {/* Tags row */}
+        {/* Tags row — sin máx/inversor */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           {op.publico && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 9px', borderRadius: '99px', fontSize: '9px', fontWeight: 600, letterSpacing: '0.08em', color: '#6dc86d', border: '0.5px solid rgba(109,200,109,0.35)', background: 'rgba(109,200,109,0.08)' }}>
@@ -258,12 +273,24 @@ export default function MarketplaceCard({
               {op.tipo_propiedad}
             </span>
           )}
-          {op.tickets_por_participante > 0 && (
-            <span style={{ padding: '3px 9px', borderRadius: '99px', fontSize: '9px', color: 'var(--gold-200)', border: '0.5px solid rgba(201,160,67,0.25)', background: 'rgba(201,160,67,0.06)' }}>
-              máx. {op.tickets_por_participante}/inversor
-            </span>
-          )}
         </div>
+
+        {/* Fase hipotecaria (si existe) */}
+        {op.fase_hipotecaria && (
+          <div style={{
+            padding: '7px 10px',
+            borderRadius: '8px',
+            background: 'rgba(201,160,67,0.06)',
+            border: '0.5px solid rgba(201,160,67,0.2)',
+          }}>
+            <div style={{ fontSize: '8px', color: 'var(--gold-200)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>
+              Fase hipotecaria
+            </div>
+            <div style={{ fontSize: '10px', color: 'var(--text-2)', lineHeight: 1.4 }}>
+              {op.fase_hipotecaria}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
@@ -275,45 +302,32 @@ export default function MarketplaceCard({
           )}
         </div>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Botón reservar (principal) */}
+        {/* CTAs — stopPropagation para no abrir el modal al pulsar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} onClick={e => e.stopPropagation()}>
           <button
             onClick={handleReservar}
-            disabled={reservando || isFull || !op.activa}
+            disabled={reservando || isFull || !op.activa || isFinalizada}
             style={{
               width: '100%', padding: '13px',
-              background: isFull || !op.activa
+              background: isFull || !op.activa || isFinalizada
                 ? 'rgba(255,255,255,0.05)'
                 : 'linear-gradient(135deg, var(--gold-300), var(--gold-200), var(--gold-100))',
-              color: isFull || !op.activa ? 'var(--text-3)' : 'var(--bg-0)',
-              border: isFull || !op.activa ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
+              color: isFull || !op.activa || isFinalizada ? 'var(--text-3)' : 'var(--bg-0)',
+              border: isFull || !op.activa || isFinalizada ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
               borderRadius: '12px', fontSize: '11px', fontWeight: 700,
               letterSpacing: '0.12em', textTransform: 'uppercase',
-              cursor: isFull || !op.activa ? 'not-allowed' : reservando ? 'wait' : 'pointer',
+              cursor: isFull || !op.activa || isFinalizada ? 'not-allowed' : reservando ? 'wait' : 'pointer',
               opacity: reservando ? 0.7 : 1,
               transition: 'opacity 0.15s, transform 0.15s, box-shadow 0.15s',
-              boxShadow: isFull || !op.activa ? 'none' : '0 4px 16px rgba(201,160,67,0.2)',
-            }}
-            onMouseEnter={e => {
-              if (isFull || !op.activa) return
-              const el = e.currentTarget
-              el.style.transform = 'translateY(-1px)'
-              el.style.boxShadow = '0 8px 24px rgba(201,160,67,0.35)'
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget
-              el.style.transform = ''
-              el.style.boxShadow = isFull || !op.activa ? 'none' : '0 4px 16px rgba(201,160,67,0.2)'
+              boxShadow: isFull || !op.activa || isFinalizada ? 'none' : '0 4px 16px rgba(201,160,67,0.2)',
             }}
           >
-            {reservando ? '⏳ Redirigiendo…' : isFull ? 'Completa' : !op.activa ? 'No disponible' : 'Reservar ticket →'}
+            {reservando ? '⏳ Redirigiendo…' : isFinalizada ? 'Operación finalizada' : isFull ? 'Completa' : !op.activa ? 'No disponible' : 'Reservar ticket →'}
           </button>
 
-          {/* Ver informe PDF (secundario) */}
           {op.pdf_url && (
             <button
-              onClick={onVerPDF}
+              onClick={e => { e.stopPropagation(); onVerPDF?.() }}
               style={{
                 width: '100%', padding: '10px',
                 background: 'transparent',
@@ -337,7 +351,6 @@ export default function MarketplaceCard({
             </button>
           )}
 
-          {/* Error de pago */}
           {reservaError && (
             <p style={{ fontSize: '10px', color: '#e05', textAlign: 'center', margin: 0 }}>
               ⚠ {reservaError}

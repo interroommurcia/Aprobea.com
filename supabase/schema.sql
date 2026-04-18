@@ -150,3 +150,14 @@ CREATE TABLE IF NOT EXISTS ia_documentos (
   contenido  TEXT NOT NULL
 );
 -- Sin RLS — solo acceso vía service_role (admin)
+
+-- ============================================================
+-- ESTADOS Y FASES — operaciones_estudiadas
+-- ============================================================
+-- Ejecutar en Supabase → SQL Editor si la tabla ya existe
+ALTER TABLE operaciones_estudiadas
+  ADD COLUMN IF NOT EXISTS estado_operacion TEXT DEFAULT 'activa'
+    CHECK (estado_operacion IN ('activa','reservada','completada','finalizada'));
+
+ALTER TABLE operaciones_estudiadas
+  ADD COLUMN IF NOT EXISTS fase_hipotecaria TEXT;

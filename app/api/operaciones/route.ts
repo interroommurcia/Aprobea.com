@@ -5,7 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 export async function GET(_req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from('operaciones_estudiadas')
-    .select('id, titulo, descripcion, tipo, pdf_url, pdf_nombre, created_at, tickets_total, tickets_por_participante, importe_objetivo, referencia_catastral, municipio, provincia, valor_mercado, precio_compra, comision, rentabilidad, ticket_minimo, superficie, tipo_propiedad, imagen_principal, publico, participaciones(id, estado, operacion_id)')
+    .select('id, titulo, descripcion, tipo, pdf_url, pdf_nombre, created_at, tickets_total, tickets_por_participante, importe_objetivo, referencia_catastral, municipio, provincia, valor_mercado, precio_compra, comision, rentabilidad, ticket_minimo, superficie, tipo_propiedad, imagen_principal, publico, estado_operacion, fase_hipotecaria, participaciones(id, estado, operacion_id)')
     .eq('activa', true)
     .order('created_at', { ascending: false })
 

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         const meta    = session.metadata ?? {}
 
         if (meta.flujo === 'reserva') {
-          const { operacion_id, user_id } = meta
+          const { operacion_id, user_id, tipo } = meta
           if (operacion_id) {
             await supabaseAdmin.from('participaciones').insert({
               operacion_id,
@@ -44,6 +44,13 @@ export async function POST(req: NextRequest) {
               stripe_session_id: session.id,
               importe:           (session.amount_total ?? 0) / 100,
             })
+            // NPL → pasar la operación a estado "reservada" automáticamente
+            if (tipo === 'npl') {
+              await supabaseAdmin
+                .from('operaciones_estudiadas')
+                .update({ estado_operacion: 'reservada' })
+                .eq('id', operacion_id)
+            }
           }
         }
 

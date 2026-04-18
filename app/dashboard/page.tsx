@@ -10,6 +10,7 @@ import { t } from '@/lib/i18n'
 import { downloadCSV, downloadExcel } from '@/lib/export'
 import TicketProgress from '@/components/TicketProgress'
 import MarketplaceCard from '@/components/MarketplaceCard'
+import AssetDetailModal from '@/components/AssetDetailModal'
 import Calendario, { EventoCalendario } from '@/components/Calendario'
 import SkylerWidget from '@/components/SkylerWidget'
 
@@ -84,6 +85,7 @@ export default function DashboardPage() {
   const [tab, setTab] = useState(i18n.dashboard)
   const [eventos, setEventos] = useState<EventoCalendario[]>([])
   const [chatToken2, setChatToken2] = useState('')
+  const [detailOp, setDetailOp] = useState<any>(null)
   const [cliente, setCliente] = useState<Cliente | null>(null)
   const [parts, setParts] = useState<Participacion[]>([])
   const [notifs, setNotifs] = useState<Notificacion[]>([])
@@ -676,16 +678,35 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {ops.map(op => (
-            <MarketplaceCard
-              key={op.id}
-              op={op as any}
-              onVerPDF={op.pdf_url ? () => window.open(op.pdf_url!, '_blank') : undefined}
-              userEmail={cliente?.email}
-              userId={(cliente as any)?.user_id}
-            />
-          ))}
+          {[...ops]
+            .sort((a: any, b: any) => {
+              // Finalizada siempre al fondo; dentro de cada grupo, más reciente primero
+              const af = (a.estado_operacion === 'finalizada') ? 1 : 0
+              const bf = (b.estado_operacion === 'finalizada') ? 1 : 0
+              return af - bf || b.created_at.localeCompare(a.created_at)
+            })
+            .map((op: any) => (
+              <MarketplaceCard
+                key={op.id}
+                op={op}
+                onVerPDF={op.pdf_url ? () => window.open(op.pdf_url!, '_blank') : undefined}
+                userEmail={cliente?.email}
+                userId={(cliente as any)?.user_id}
+                onClick={() => setDetailOp(op)}
+              />
+            ))}
         </div>
+      )}
+      {/* Ficha técnica modal */}
+      {detailOp && (
+        <AssetDetailModal
+          op={detailOp}
+          onClose={() => setDetailOp(null)}
+          onVerPDF={detailOp.pdf_url ? () => window.open(detailOp.pdf_url!, '_blank') : undefined}
+          userEmail={cliente?.email}
+          userId={(cliente as any)?.user_id}
+          authToken={chatToken}
+        />
       )}
       {/* Rent to Rent */}
       {rentEntries.length > 0 && (

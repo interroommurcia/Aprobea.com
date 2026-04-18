@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
   const imagen_principal      = (form.get('imagen_principal') as string) || null
   const comunidad_autonoma    = (form.get('comunidad_autonoma') as string) || null
   const publico               = form.get('publico') !== 'false'
+  const fase_hipotecaria      = (form.get('fase_hipotecaria') as string) || null
 
   if (!titulo || !tipo) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
 
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
       tickets_total, tickets_por_participante, importe_objetivo,
       referencia_catastral, municipio, provincia, comunidad_autonoma, superficie, tipo_propiedad,
       valor_mercado, precio_compra, comision, rentabilidad, ticket_minimo,
-      imagen_principal, publico,
+      imagen_principal, publico, estado_operacion: 'activa', fase_hipotecaria,
     })
     .select()
     .single()
@@ -184,7 +185,8 @@ export async function PATCH(req: NextRequest) {
   const { id, activa, tickets_total, tickets_por_participante, importe_objetivo,
     titulo, descripcion, tipo, referencia_catastral, municipio, provincia,
     comunidad_autonoma, superficie, tipo_propiedad, valor_mercado, precio_compra,
-    comision, rentabilidad, ticket_minimo, imagen_principal, publico } = body
+    comision, rentabilidad, ticket_minimo, imagen_principal, publico,
+    estado_operacion, fase_hipotecaria } = body
 
   const update: Record<string, unknown> = {}
   if (activa !== undefined)                   update.activa = activa
@@ -207,10 +209,26 @@ export async function PATCH(req: NextRequest) {
   if (ticket_minimo !== undefined)            update.ticket_minimo = ticket_minimo || null
   if (imagen_principal !== undefined)         update.imagen_principal = imagen_principal || null
   if (publico !== undefined)                  update.publico = publico
+  if (fase_hipotecaria !== undefined)         update.fase_hipotecaria = fase_hipotecaria || null
+  if (estado_operacion !== undefined)         update.estado_operacion = estado_operacion
+
+  // Crowdfunding + completada → auto-calcular tickets_total desde participaciones reales
+  if (estado_operacion === 'completada' && id) {
+    const { data: opTipo } = await supabaseAdmin
+      .from('operaciones_estudiadas').select('tipo').eq('id', id).single()
+    if (opTipo?.tipo === 'crowdfunding') {
+      const { count } = await supabaseAdmin
+        .from('participaciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('operacion_id', id)
+        .in('estado', ['activa', 'pendiente'])
+      if (count != null) update.tickets_total = count
+    }
+  }
 
   const { error } = await supabaseAdmin.from('operaciones_estudiadas').update(update).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, ...(update.tickets_total !== undefined ? { tickets_total: update.tickets_total } : {}) })
 }
 
 export async function DELETE(req: NextRequest) {

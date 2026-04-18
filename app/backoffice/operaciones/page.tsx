@@ -21,6 +21,20 @@ type Operacion = {
   rentabilidad: number | null; ticket_minimo: number | null
   superficie: number | null; tipo_propiedad: string | null
   imagen_principal: string | null; publico: boolean
+  estado_operacion: string
+  fase_hipotecaria: string | null
+}
+
+const FASES_HIPOTECARIA = [
+  'Ejecución hipotecaria activa — Decreto de subasta solicitado',
+  'Convocatoria y celebración de subasta electrónica en el Portal de Subastas del BOE',
+  'Cobro de pujas o Decreto de adjudicación de la finca',
+  'Inscripción del Testimonio en el Registro de la Propiedad',
+  'Tramitación de toma de posesión si hubiera ocupación (art. 690 LEC)',
+]
+
+const ESTADO_COLORS: Record<string, string> = {
+  activa: '#6dc86d', reservada: '#C9A043', completada: '#4a9eff', finalizada: '#999',
 }
 
 type _PDFZone = {
@@ -48,6 +62,7 @@ export default function OperacionesPage() {
     valor_mercado: '', precio_compra: '', comision: '',
     rentabilidad: '', ticket_minimo: '', imagen_principal: '',
     publico: 'true',
+    fase_hipotecaria: '',
   }
   const [form, setForm] = useState(EMPTY_FORM)
   const [catastroLoading, setCatastroLoading] = useState(false)
@@ -269,6 +284,7 @@ export default function OperacionesPage() {
       ticket_minimo: op.ticket_minimo != null ? String(op.ticket_minimo) : '',
       imagen_principal: op.imagen_principal ?? '',
       publico: op.publico ? 'true' : 'false',
+      fase_hipotecaria: op.fase_hipotecaria ?? '',
     })
   }
 
@@ -294,6 +310,7 @@ export default function OperacionesPage() {
       ticket_minimo: f.ticket_minimo ? parseFloat(f.ticket_minimo) : null,
       imagen_principal: f.imagen_principal || null,
       publico: f.publico !== 'false',
+      fase_hipotecaria: f.fase_hipotecaria || null,
     }
     const res = await fetch('/api/backoffice/operaciones', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
@@ -432,9 +449,23 @@ export default function OperacionesPage() {
     const props: (keyof typeof EMPTY_FORM)[] = [
       'referencia_catastral','municipio','provincia','comunidad_autonoma','superficie','tipo_propiedad',
       'valor_mercado','precio_compra','comision','rentabilidad','ticket_minimo',
-      'imagen_principal','publico',
+      'imagen_principal','publico','fase_hipotecaria',
     ]
     for (const k of props) if (form[k]) fd.append(k, form[k])
+  }
+
+  async function changeEstadoOperacion(op: Operacion, estado: string) {
+    const res = await fetch('/api/backoffice/operaciones', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: op.id, estado_operacion: estado }),
+    })
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setOps(prev => prev.map(o => o.id === op.id
+        ? { ...o, estado_operacion: estado, ...(data.tickets_total != null ? { tickets_total: data.tickets_total } : {}) }
+        : o
+      ))
+    }
   }
 
   async function saveTickets(op: Operacion, tickets_total: number) {
@@ -497,6 +528,13 @@ export default function OperacionesPage() {
           <div>
             <label className="bo-label">Descripción</label>
             <textarea className="bo-input" value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} rows={2} placeholder="Descripción visible para el inversor…" style={{ resize: 'vertical' }} />
+          </div>
+          <div style={{ marginTop: '0.875rem' }}>
+            <label className="bo-label">Fase de ejecución hipotecaria</label>
+            <select className="bo-input" value={form.fase_hipotecaria} onChange={e => setForm(f => ({ ...f, fase_hipotecaria: e.target.value }))}>
+              <option value="">— Sin fase asignada —</option>
+              {FASES_HIPOTECARIA.map(f => <option key={f} value={f}>{f}</option>)}
+            </select>
           </div>
         </div>
 
@@ -700,8 +738,27 @@ export default function OperacionesPage() {
                     <button onClick={() => openOpEdit(op)} className="bo-btn bo-btn-ghost bo-btn-sm" title="Editar todos los datos">
                       ✏ Editar
                     </button>
+                    {/* Selector de estado de la operación */}
+                    <select
+                      value={op.estado_operacion ?? 'activa'}
+                      onChange={e => changeEstadoOperacion(op, e.target.value)}
+                      className="bo-input"
+                      style={{
+                        fontSize: '11px', padding: '4px 8px', height: 'auto',
+                        color: ESTADO_COLORS[op.estado_operacion ?? 'activa'] ?? 'var(--text-1)',
+                        borderColor: ESTADO_COLORS[op.estado_operacion ?? 'activa'] ?? 'var(--gold-border)',
+                        background: `${ESTADO_COLORS[op.estado_operacion ?? 'activa'] ?? '#6dc86d'}12`,
+                        minWidth: '110px',
+                      }}
+                      title="Cambiar estado de la operación"
+                    >
+                      <option value="activa">● Activa</option>
+                      <option value="reservada">● Reservada</option>
+                      <option value="completada">● Completada</option>
+                      <option value="finalizada">● Finalizada</option>
+                    </select>
                     <button onClick={() => toggleActiva(op)} className={`bo-btn bo-btn-sm ${op.activa ? 'bo-btn-success' : 'bo-btn-neutral'}`}>
-                      {op.activa ? '● Activa' : '○ Oculta'}
+                      {op.activa ? '👁 Visible' : '○ Oculta'}
                     </button>
                     <button onClick={() => deleteOp(op)} className="bo-btn bo-btn-danger bo-btn-sm">✕</button>
                   </div>
@@ -787,6 +844,12 @@ export default function OperacionesPage() {
               </div>
               <div><label className="bo-label">Descripción</label>
                 <textarea className="bo-input" value={editOpForm.descripcion} onChange={e => setEditOpForm(f => f && ({ ...f, descripcion: e.target.value }))} rows={2} style={{ resize: 'vertical' }} />
+              </div>
+              <div><label className="bo-label">Fase de ejecución hipotecaria</label>
+                <select className="bo-input" value={editOpForm.fase_hipotecaria} onChange={e => setEditOpForm(f => f && ({ ...f, fase_hipotecaria: e.target.value }))}>
+                  <option value="">— Sin fase asignada —</option>
+                  {FASES_HIPOTECARIA.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
               </div>
             </div>
 
