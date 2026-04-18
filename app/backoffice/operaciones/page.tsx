@@ -279,19 +279,65 @@ export default function OperacionesPage() {
     if (!rc) return
     setCatastroLoading(true); setCatastroMsg(''); setIdealistaUrl(null)
     try {
-      const res = await fetch(`/api/catastro?rc=${encodeURIComponent(rc)}`)
-      const data = await res.json()
-      if (!res.ok || data.error) { setCatastroMsg(`⚠ ${data.error ?? 'No encontrado'}`); return }
+      // Call Catastro directly from the browser — the API allows CORS (*) but blocks non-Spanish server IPs
+      const detailUrl = `https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/rest/Consulta_DNPRC?Provincia=&Municipio=&RC=${encodeURIComponent(rc)}`
+      const coordUrl  = `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/ovccoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC=${encodeURIComponent(rc)}`
+      const [detailRes, coordRes] = await Promise.all([
+        fetch(detailUrl, { headers: { Accept: 'application/xml' } }),
+        fetch(coordUrl,  { headers: { Accept: 'application/xml' } }),
+      ])
+      const [detailXml, coordXml] = await Promise.all([detailRes.text(), coordRes.text()])
+
+      function extractXml(xml: string, tag: string) {
+        const m = xml.match(new RegExp(`<${tag}[^>]*>([^<]+)<\/${tag}>`, 'i'))
+        return m ? m[1].trim() : null
+      }
+      function mapUso(uso: string) {
+        const u = uso.toLowerCase()
+        if (u.includes('residencial') || u.includes('vivienda')) return 'Residencial'
+        if (u.includes('comercial') || u.includes('comercio')) return 'Comercial'
+        if (u.includes('industrial') || u.includes('almacen')) return 'Industrial'
+        if (u.includes('solar') || u.includes('suelo')) return 'Suelo'
+        if (u.includes('oficina')) return 'Oficinas'
+        return uso ? uso.charAt(0).toUpperCase() + uso.slice(1).toLowerCase() : 'Residencial'
+      }
+
+      const errCode = extractXml(detailXml, 'cod')
+      if (errCode && errCode !== '0') {
+        const msgs: Record<string, string> = {
+          '1':  'Referencia catastral vacía',
+          '17': 'Referencia catastral no encontrada — verifica que los 20 caracteres sean correctos',
+          '43': 'Formato de referencia incorrecto',
+        }
+        setCatastroMsg(`⚠ ${msgs[errCode] ?? `Error Catastro ${errCode}`}`)
+        return
+      }
+
+      const direccion = extractXml(detailXml, 'ldt') ?? ''
+      const uso       = extractXml(detailXml, 'luso') ?? ''
+      const sfc       = extractXml(detailXml, 'sfc') ?? ''
+      const municipio = extractXml(detailXml, 'nm') ?? ''
+      const provincia = extractXml(detailXml, 'np') ?? ''
+      const lat       = extractXml(coordXml, 'ycen') ?? ''
+      const lon       = extractXml(coordXml, 'xcen') ?? ''
+
+      let idealistaUrl: string | null = null
+      if (lat && lon) idealistaUrl = `https://www.idealista.com/geo?lat=${lat}&lon=${lon}&tipo=viviendas`
+      else if (municipio) {
+        const slug = municipio.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
+        idealistaUrl = `https://www.idealista.com/casas-${slug}/`
+      }
+
       setForm(f => ({
         ...f,
         referencia_catastral: rc,
-        titulo:          !f.titulo && data.direccion ? data.direccion : f.titulo,
-        municipio:       data.municipio      ?? f.municipio,
-        provincia:       data.provincia      ?? f.provincia,
-        superficie:      data.superficie != null ? String(data.superficie) : f.superficie,
-        tipo_propiedad:  data.tipo_propiedad  ?? f.tipo_propiedad,
+        titulo:         !f.titulo && direccion ? direccion : f.titulo,
+        municipio:      municipio || f.municipio,
+        provincia:      provincia || f.provincia,
+        superficie:     sfc ? String(parseFloat(sfc)) : f.superficie,
+        tipo_propiedad: uso ? mapUso(uso) : f.tipo_propiedad,
       }))
-      if (data.idealistaUrl) setIdealistaUrl(data.idealistaUrl)
+      if (idealistaUrl) setIdealistaUrl(idealistaUrl)
       setCatastroMsg('✓ Datos del Catastro cargados')
     } catch { setCatastroMsg('⚠ Error de conexión con Catastro') }
     finally { setCatastroLoading(false) }
