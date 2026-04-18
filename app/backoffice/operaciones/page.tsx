@@ -309,6 +309,52 @@ export default function OperacionesPage() {
       const cuerr = extractXml(detailXml, 'cuerr')
       if (cuerr && cuerr !== '0') {
         const errCode = extractXml(detailXml, 'cod') ?? ''
+        // If 20-char RC not found, retry with 14-char base (parcel-level)
+        if (errCode === '17' && rc.length === 20) {
+          const rc14 = rc.slice(0, 14)
+          setCatastroMsg('⏳ Reintentando con RC de parcela (14 caracteres)…')
+          const detail14Url = `https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/rest/Consulta_DNPRC?Provincia=&Municipio=&RC=${encodeURIComponent(rc14)}`
+          const coord14Url  = `https://ovc.catastro.meh.es/ovcservweb/OVCSWLocalizacionRC/ovccoordenadas.asmx/Consulta_CPMRC?Provincia=&Municipio=&SRS=EPSG:4326&RC=${encodeURIComponent(rc14)}`
+          const [r14, c14] = await Promise.all([
+            fetch(detail14Url, { headers: { Accept: 'application/xml' } }),
+            fetch(coord14Url,  { headers: { Accept: 'application/xml' } }),
+          ])
+          const [xml14, cxml14] = await Promise.all([r14.text(), c14.text()])
+          const cuerr14 = extractXml(xml14, 'cuerr')
+          if (cuerr14 && cuerr14 !== '0') {
+            setCatastroMsg('⚠ Referencia catastral no encontrada en Catastro')
+            return
+          }
+          // Reuse parsed data from 14-char response
+          const direccion = extractXml(xml14, 'ldt') ?? ''
+          const uso       = extractXml(xml14, 'luso') ?? ''
+          const sfc       = extractXml(xml14, 'sfc') ?? ''
+          const municipio = extractXml(xml14, 'nm') ?? ''
+          const provincia = extractXml(xml14, 'np') ?? ''
+          const latStr    = extractXml(cxml14, 'ycen') ?? ''
+          const lonStr    = extractXml(cxml14, 'xcen') ?? ''
+          const lat = latStr ? parseFloat(latStr) : null
+          const lon = lonStr ? parseFloat(lonStr) : null
+          let idealistaUrl: string | null = null
+          if (lat && lon) idealistaUrl = `https://www.idealista.com/geo?lat=${lat}&lon=${lon}&tipo=viviendas`
+          else if (municipio) {
+            const slug = municipio.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')
+            idealistaUrl = `https://www.idealista.com/casas-${slug}/`
+          }
+          setForm(f => ({
+            ...f,
+            referencia_catastral: rc,
+            titulo:         !f.titulo && direccion ? direccion : f.titulo,
+            municipio:      municipio || f.municipio,
+            provincia:      provincia || f.provincia,
+            superficie:     sfc ? String(parseFloat(sfc)) : f.superficie,
+            tipo_propiedad: uso ? mapUso(uso) : f.tipo_propiedad,
+          }))
+          if (lat && lon) setCatastroCoords({ lat, lon })
+          if (idealistaUrl) setIdealistaUrl(idealistaUrl)
+          setCatastroMsg('✓ Datos del Catastro cargados (parcela)')
+          return
+        }
         const msgs: Record<string, string> = {
           '1':  'Referencia catastral vacía',
           '17': 'Referencia catastral no encontrada — verifica los 20 caracteres',
