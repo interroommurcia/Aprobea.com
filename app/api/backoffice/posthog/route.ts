@@ -212,15 +212,11 @@ export async function GET(req: NextRequest) {
 
       // Logins por día (30d)
       hogql(`
-        SELECT toDate(min_ts) AS day, count() AS logins
-        FROM (
-          SELECT distinct_id, properties.$session_id, min(timestamp) AS min_ts
-          FROM events
-          WHERE event = '$pageview'
-            AND properties.$current_url LIKE '%/dashboard%'
-            AND timestamp >= now() - INTERVAL 30 DAY
-          GROUP BY distinct_id, properties.$session_id
-        )
+        SELECT toDate(timestamp) AS day, uniqExact(properties.$session_id) AS logins
+        FROM events
+        WHERE event = '$pageview'
+          AND properties.$current_url LIKE '%/dashboard%'
+          AND timestamp >= now() - INTERVAL 30 DAY
         GROUP BY day
         ORDER BY day ASC
       `),
