@@ -487,7 +487,7 @@ export default function Home() {
                   {lang === 'es' ? 'Membresía anual' : 'Annual membership'}
                 </div>
                 <div style={{ fontSize: '1.15rem', fontFamily: 'var(--font-cormorant), serif', fontWeight: 300, color: 'var(--gold-100)' }}>
-                  60€ <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
+                  110€ <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
                 </div>
               </div>
               <div style={{ fontSize: '9px', color: 'var(--text-3)', textAlign: 'right', maxWidth: '120px', lineHeight: 1.5 }}>
@@ -646,7 +646,7 @@ export default function Home() {
               borderRadius: 'var(--radius)', padding: '1rem', margin: '1rem 0',
             }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-                <span style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--gold-100)' }}>60€</span>
+                <span style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--gold-100)' }}>110€</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', lineHeight: 1.5 }}>
@@ -664,8 +664,8 @@ export default function Home() {
               <li data-es="Asesor personal asignado" data-en="Dedicated personal advisor">Asesor personal asignado</li>
               <li data-es="Licencia de IA Claude · Pro" data-en="Claude AI License · Pro">Licencia de IA Claude · Pro</li>
             </ul>
-            <button className="btn-register btn-register-outline" onClick={() => setOpenModal('crowdfunding')} data-es="Unirme · 60€ + IVA / año" data-en="Join · €60 + VAT / year">
-              Unirme · 60€ + IVA / año
+            <button className="btn-register btn-register-outline" onClick={() => setOpenModal('crowdfunding')} data-es="Unirme · 110€ + IVA / año" data-en="Join · €110 + VAT / year">
+              Unirme · 110€ + IVA / año
             </button>
           </div>
         </div>
@@ -1053,11 +1053,11 @@ export default function Home() {
               {lang === 'es' ? 'Consigna de documento y capital' : 'Document & capital custody'}
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '4px', marginBottom: '0.25rem' }}>
-              <span className="serif" style={{ fontSize: '3.2rem', fontWeight: 300, color: 'var(--gold-100)', lineHeight: 1 }}>60€</span>
+              <span className="serif" style={{ fontSize: '3.2rem', fontWeight: 300, color: 'var(--gold-100)', lineHeight: 1 }}>110€</span>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginBottom: '0.4rem' }}>+ IVA / {lang === 'es' ? 'año' : 'year'}</span>
             </div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', margin: 0 }}>
-              {lang === 'es' ? '72,60€ total · Renovación automática anual · Cancela cuando quieras' : '€72.60 total · Auto-renews yearly · Cancel anytime'}
+              {lang === 'es' ? '133,10€ total · Renovación automática anual · Cancela cuando quieras' : '€133.10 total · Auto-renews yearly · Cancel anytime'}
             </p>
             {/* Features */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.25rem', textAlign: 'left' }}>
@@ -1131,7 +1131,7 @@ export default function Home() {
               <button type="submit" className="form-submit" disabled={cfLoading} style={{ opacity: cfLoading ? 0.7 : 1 }}>
                 {cfLoading
                   ? (lang === 'es' ? 'Procesando…' : 'Processing…')
-                  : (lang === 'es' ? 'Pagar membresía — 60€ + IVA →' : 'Pay membership — €60 + VAT →')}
+                  : (lang === 'es' ? 'Pagar membresía — 110€ + IVA →' : 'Pay membership — €110 + VAT →')}
               </button>
               <p className="form-disclaimer">
                 {lang === 'es'

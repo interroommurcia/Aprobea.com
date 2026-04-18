@@ -1,6 +1,6 @@
 /**
  * POST /api/stripe/membresia
- * Crea una Checkout Session para la membresía anual de crowdfunding (60 € + IVA).
+ * Crea una Checkout Session para la membresía anual de crowdfunding (110 € + IVA).
  * Body: { user_id, email, nombre? }
  */
 import { NextRequest, NextResponse } from 'next/server'
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
       .eq('key', 'precio_membresia_crowdfunding')
       .single()
 
-    const precioEuros = cfg ? parseFloat(cfg.value) : 60
+    const precioEuros = cfg ? parseFloat(cfg.value) : 110
     const precioCents = Math.round(precioEuros * 100)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 

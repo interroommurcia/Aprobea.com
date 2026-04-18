@@ -13,7 +13,7 @@ const DEFAULTS: Config = {
   precio_suscripcion_anual:    '29',
   precio_reserva_npl:          '1000',
   precio_reserva_crowdfunding: '100',
-  pagos_activos:               'false',
+  pagos_activos:               'true',
 }
 
 export default function PagosPage() {
@@ -297,7 +297,7 @@ INSERT INTO configuracion (key, value) VALUES
   ('precio_suscripcion_anual',    '29'),
   ('precio_reserva_npl',          '1000'),
   ('precio_reserva_crowdfunding', '100'),
-  ('pagos_activos',               'false')
+  ('pagos_activos',               'true')
 ON CONFLICT (key) DO NOTHING;
 
 -- Columna en clientes para rastrear suscripción
