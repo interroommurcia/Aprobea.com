@@ -159,7 +159,10 @@ export default function OperacionesPage() {
     fd.append('branding', JSON.stringify(branding))
     const res = await fetch('/api/backoffice/pdf-redact', { method: 'POST', body: fd })
     if (!res.ok) {
-      const e = await res.json().catch(() => ({ error: 'Error desconocido' }))
+      const e = await res.json().catch(async () => {
+        const txt = await res.text().catch(() => '')
+        return { error: txt || `HTTP ${res.status}` }
+      })
       setPreviewError(e.error || 'Error procesando el PDF')
       setPreviewing(false)
       return

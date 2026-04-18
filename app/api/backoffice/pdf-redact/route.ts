@@ -3,6 +3,8 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import path from 'path'
 import fs from 'fs'
 
+export const runtime = 'nodejs'
+
 type Zone = {
   page: number        // 0-indexed, -1 = última página
   from_bottom: number // ratio 0-1 desde abajo
