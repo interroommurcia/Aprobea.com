@@ -50,6 +50,7 @@ export default function OperacionesPage() {
   const [catastroLoading, setCatastroLoading] = useState(false)
   const [catastroMsg, setCatastroMsg] = useState('')
   const [idealistaUrl, setIdealistaUrl] = useState<string | null>(null)
+  const [catastroCoords, setCatastroCoords] = useState<{ lat: number; lon: number } | null>(null)
   const [pdfRCMsg, setPdfRCMsg] = useState('')
   const [editingTickets, setEditingTickets] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -277,7 +278,7 @@ export default function OperacionesPage() {
   async function buscarCatastro(rcParam?: string) {
     const rc = (rcParam ?? form.referencia_catastral).trim().toUpperCase()
     if (!rc) return
-    setCatastroLoading(true); setCatastroMsg(''); setIdealistaUrl(null)
+    setCatastroLoading(true); setCatastroMsg(''); setIdealistaUrl(null); setCatastroCoords(null)
     try {
       // Call Catastro directly from the browser — the API allows CORS (*) but blocks non-Spanish server IPs
       const detailUrl = `https://ovc.catastro.meh.es/OVCServWeb/OVCWcfCallejero/COVCCallejero.svc/rest/Consulta_DNPRC?Provincia=&Municipio=&RC=${encodeURIComponent(rc)}`
@@ -302,14 +303,17 @@ export default function OperacionesPage() {
         return uso ? uso.charAt(0).toUpperCase() + uso.slice(1).toLowerCase() : 'Residencial'
       }
 
-      const errCode = extractXml(detailXml, 'cod')
-      if (errCode && errCode !== '0') {
+      // Use <cuerr> (control field) for error detection — more reliable than <cod>
+      // <cod> appears in multiple contexts in success responses (street code, etc.)
+      const cuerr = extractXml(detailXml, 'cuerr')
+      if (cuerr && cuerr !== '0') {
+        const errCode = extractXml(detailXml, 'cod') ?? ''
         const msgs: Record<string, string> = {
           '1':  'Referencia catastral vacía',
-          '17': 'Referencia catastral no encontrada — verifica que los 20 caracteres sean correctos',
+          '17': 'Referencia catastral no encontrada — verifica los 20 caracteres',
           '43': 'Formato de referencia incorrecto',
         }
-        setCatastroMsg(`⚠ ${msgs[errCode] ?? `Error Catastro ${errCode}`}`)
+        setCatastroMsg(`⚠ ${msgs[errCode] ?? `Error Catastro ${errCode || cuerr}`}`)
         return
       }
 
@@ -318,8 +322,10 @@ export default function OperacionesPage() {
       const sfc       = extractXml(detailXml, 'sfc') ?? ''
       const municipio = extractXml(detailXml, 'nm') ?? ''
       const provincia = extractXml(detailXml, 'np') ?? ''
-      const lat       = extractXml(coordXml, 'ycen') ?? ''
-      const lon       = extractXml(coordXml, 'xcen') ?? ''
+      const latStr    = extractXml(coordXml, 'ycen') ?? ''
+      const lonStr    = extractXml(coordXml, 'xcen') ?? ''
+      const lat = latStr ? parseFloat(latStr) : null
+      const lon = lonStr ? parseFloat(lonStr) : null
 
       let idealistaUrl: string | null = null
       if (lat && lon) idealistaUrl = `https://www.idealista.com/geo?lat=${lat}&lon=${lon}&tipo=viviendas`
@@ -337,6 +343,7 @@ export default function OperacionesPage() {
         superficie:     sfc ? String(parseFloat(sfc)) : f.superficie,
         tipo_propiedad: uso ? mapUso(uso) : f.tipo_propiedad,
       }))
+      if (lat && lon) setCatastroCoords({ lat, lon })
       if (idealistaUrl) setIdealistaUrl(idealistaUrl)
       setCatastroMsg('✓ Datos del Catastro cargados')
     } catch { setCatastroMsg('⚠ Error de conexión con Catastro') }
@@ -427,9 +434,26 @@ export default function OperacionesPage() {
               </button>
             </div>
             {catastroMsg && (
-              <div style={{ fontSize: '11px', marginTop: '6px', color: catastroMsg.startsWith('✓') ? '#6dc86d' : '#e8a020', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontSize: '11px', marginTop: '6px', color: catastroMsg.startsWith('✓') ? '#6dc86d' : '#e8a020', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {catastroMsg}
                 {idealistaUrl && <a href={idealistaUrl} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Ver en Idealista ↗</a>}
+                {catastroCoords && (
+                  <>
+                    <a href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${catastroCoords.lat},${catastroCoords.lon}`} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Street View ↗</a>
+                    <a href={`https://maps.google.com/?q=${catastroCoords.lat},${catastroCoords.lon}&z=18`} target="_blank" rel="noopener noreferrer" className="bo-btn bo-btn-ghost bo-btn-sm" style={{ textDecoration: 'none' }}>Google Maps ↗</a>
+                  </>
+                )}
+              </div>
+            )}
+            {catastroCoords && catastroMsg.startsWith('✓') && (
+              <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.08)' }}>
+                <iframe
+                  title="Localización catastral"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${catastroCoords.lon - 0.003},${catastroCoords.lat - 0.002},${catastroCoords.lon + 0.003},${catastroCoords.lat + 0.002}&layer=mapnik&marker=${catastroCoords.lat},${catastroCoords.lon}`}
+                  width="100%" height="220"
+                  style={{ border: 'none', display: 'block' }}
+                  loading="lazy"
+                />
               </div>
             )}
           </div>
