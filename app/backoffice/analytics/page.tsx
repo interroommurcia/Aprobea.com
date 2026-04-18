@@ -27,8 +27,13 @@ type PHStats = {
   sources:    { source: string; visits: number; visitors: number }[]
   devices:    { device: string; visits: number; visitors: number }[]
   entryPages: { path: string; sessions: number }[]
-  utmSources: { source: string; medium: string; visits: number; visitors: number }[]
-  countries:  { country: string; visits: number; visitors: number }[]
+  utmSources:   { source: string; medium: string; visits: number; visitors: number }[]
+  countries:    { country: string; visits: number; visitors: number }[]
+  realtime:     { path: string; active: number }[]
+  logins:       { total: number; unique: number }
+  loginsByDay:  { day: string; count: number }[]
+  clicks:       { element: string; clicks: number; users: number }[]
+  userActivity: { id: string; sessions: number; pageviews: number; source: string }[]
 }
 
 const GOLD = '#C9A043'
@@ -379,6 +384,39 @@ export default function AnalyticsPage() {
               <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '1.5rem 0' }}>Cargando datos de PostHog…</div>
             ) : ph && (
               <>
+                {/* ── Tiempo real ── */}
+                {ph.realtime && (
+                  <div style={{ marginBottom: '1.5rem', background: 'linear-gradient(135deg,rgba(109,200,109,0.06),rgba(109,200,109,0.02))', border: '0.5px solid rgba(109,200,109,0.25)', borderRadius: '14px', padding: '1.25rem 1.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6dc86d', display: 'inline-block', boxShadow: '0 0 6px #6dc86d' }} />
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-0)' }}>Usuarios ahora</span>
+                        <InfoTip text="Usuarios únicos que han generado algún evento en los últimos 5 minutos. Los datos de PostHog tienen un retraso de ~30s. Se refresca con el botón Actualizar." />
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Últimos 5 min</span>
+                    </div>
+                    {ph.realtime.length === 0 ? (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Sin actividad en los últimos 5 minutos</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {ph.realtime.map((r, i) => {
+                          const isLanding   = r.path === '/' || r.path === ''
+                          const isDashboard = r.path.includes('/dashboard')
+                          const color = isDashboard ? GOLD : isLanding ? '#6dc86d' : '#7b9fe0'
+                          const label = r.path === '' ? '/' : r.path.length > 30 ? r.path.slice(0, 30) + '…' : r.path
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-2)', border: `0.5px solid ${color}40`, borderRadius: '8px', padding: '6px 12px' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0, boxShadow: `0 0 4px ${color}` }} />
+                              <span style={{ fontSize: '11px', color: 'var(--text-2)', fontFamily: 'monospace' }}>{label}</span>
+                              <span style={{ fontSize: '13px', fontWeight: 700, color }}>{r.active}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* ── KPI row PostHog ── */}
                 <div className="rsp-grid-4" style={{ marginBottom: '1.5rem' }}>
                   <StatCard
@@ -666,6 +704,124 @@ export default function AnalyticsPage() {
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Inicios de sesión + Clicks landing ── */}
+                <div className="rsp-grid-2" style={{ marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+
+                  {/* Inicios de sesión */}
+                  <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)' }}>Inicios de sesión</div>
+                      <InfoTip text="Número de veces que un usuario ha accedido al dashboard (proxy de login). Cada sesión única que llega a /dashboard cuenta como un inicio de sesión." />
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginBottom: '1rem' }}>Últimos 30 días · accesos al dashboard</div>
+                    <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.25rem' }}>
+                      <div>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: GOLD, lineHeight: 1 }}>{ph.logins.total.toLocaleString('es-ES')}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '4px' }}>sesiones totales</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '2rem', fontWeight: 700, color: '#6dc86d', lineHeight: 1 }}>{ph.logins.unique.toLocaleString('es-ES')}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '4px' }}>usuarios únicos</div>
+                      </div>
+                    </div>
+                    {ph.loginsByDay.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', padding: '1rem 0' }}>Sin datos</div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height={100}>
+                        <AreaChart data={ph.loginsByDay} margin={{ top: 2, right: 4, left: -30, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="loginGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor="#6dc86d" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#6dc86d" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="day" tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => v.slice(5)} interval="preserveStartEnd" />
+                          <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                          <Tooltip contentStyle={{ background: '#1a1610', border: '0.5px solid rgba(109,200,109,0.3)', borderRadius: '8px', fontSize: '11px' }} labelStyle={{ color: 'rgba(255,255,255,0.5)' }} itemStyle={{ color: '#6dc86d' }} />
+                          <Area type="monotone" dataKey="count" name="Logins" stroke="#6dc86d" strokeWidth={2} fill="url(#loginGrad)" dot={false} activeDot={{ r: 4, fill: '#6dc86d' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+
+                  {/* Clicks en landing */}
+                  <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)' }}>Clicks en la landing</div>
+                      <InfoTip text="Elementos clicados en páginas públicas (landing, registro…) capturados automáticamente por PostHog. Muestra qué botones o enlaces generan más interacción." />
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginBottom: '1.25rem' }}>Últimos 30 días · top elementos clicados</div>
+                    {!ph.clicks || ph.clicks.length === 0 ? (
+                      <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', padding: '2rem 0' }}>
+                        Sin datos de clicks. Asegúrate de que el autocapture de PostHog está activo en la landing.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {ph.clicks.map((c, i) => {
+                          const maxClicks = ph.clicks[0]?.clicks ?? 1
+                          const pct       = Math.round((c.clicks / maxClicks) * 100)
+                          const color     = SOURCE_COLORS[i % SOURCE_COLORS.length]
+                          const label     = c.element.length > 36 ? c.element.slice(0, 36) + '…' : c.element
+                          return (
+                            <div key={i}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>{label}</span>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>{c.users} usr</span>
+                                  <span style={{ fontSize: '11px', color, fontWeight: 600, minWidth: '28px', textAlign: 'right' }}>{c.clicks.toLocaleString('es-ES')}</span>
+                                </div>
+                              </div>
+                              <div style={{ height: '3px', background: 'var(--bg-3)', borderRadius: '2px', overflow: 'hidden' }}>
+                                <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '2px', opacity: 0.8 }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── Tabla de usuarios ── */}
+                <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)' }}>Actividad por usuario</div>
+                    <InfoTip text="Top 20 visitantes ordenados por número de sesiones. El ID es el distinct_id de PostHog (UUID anónimo o email si el usuario fue identificado con posthog.identify()). La fuente es el último referrer conocido." />
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginBottom: '1.25rem' }}>Últimos 30 días · sesiones, pageviews y origen</div>
+                  {!ph.userActivity || ph.userActivity.length === 0 ? (
+                    <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center', padding: '2rem 0' }}>Sin datos</div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '0.5px solid var(--gold-border)' }}>
+                            {['#', 'Usuario (ID)', 'Sesiones', 'Pageviews', 'Origen'].map(h => (
+                              <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: 'var(--text-3)', fontWeight: 500, letterSpacing: '0.05em', fontSize: '10px', whiteSpace: 'nowrap' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ph.userActivity.map((u, i) => {
+                            const isEmail = u.id.includes('@')
+                            const display = isEmail ? u.id : u.id.length > 18 ? u.id.slice(0, 8) + '…' + u.id.slice(-6) : u.id
+                            const rowBg   = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                            return (
+                              <tr key={i} style={{ background: rowBg, borderBottom: '0.5px solid rgba(255,255,255,0.04)' }}>
+                                <td style={{ padding: '7px 10px', color: 'var(--text-3)', fontWeight: 600 }}>{i + 1}</td>
+                                <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: isEmail ? GOLD : 'var(--text-2)' }}>{display}</td>
+                                <td style={{ padding: '7px 10px', color: GOLD, fontWeight: 700, textAlign: 'right' }}>{u.sessions}</td>
+                                <td style={{ padding: '7px 10px', color: 'var(--text-2)', textAlign: 'right' }}>{u.pageviews.toLocaleString('es-ES')}</td>
+                                <td style={{ padding: '7px 10px', color: 'var(--text-3)', fontFamily: 'monospace', fontSize: '11px' }}>{u.source}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>

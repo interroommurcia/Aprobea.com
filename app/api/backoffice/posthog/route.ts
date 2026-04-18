@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [r7d, r30d, rTop, rDaily, rBounce, rSources, rDevices, rEntry, rUtm, rCountries] = await Promise.all([
+    const [r7d, r30d, rTop, rDaily, rBounce, rSources, rDevices, rEntry, rUtm, rCountries, rRealtime, rLogins, rLoginsByDay, rClicks, rUsers] = await Promise.all([
 
       // Stats 7 días
       hogql(`
@@ -184,6 +184,83 @@ export async function GET(req: NextRequest) {
         ORDER BY visits DESC
         LIMIT 10
       `),
+
+      // Usuarios activos ahora (últimos 5 min)
+      hogql(`
+        SELECT
+          replaceRegexpOne(properties.$current_url, 'https?://[^/]+', '') AS path,
+          uniqExact(distinct_id) AS active_users
+        FROM events
+        WHERE timestamp >= now() - INTERVAL 5 MINUTE
+        GROUP BY path
+        ORDER BY active_users DESC
+        LIMIT 10
+      `),
+
+      // Inicios de sesión — primera visita al /dashboard por sesión (30d)
+      hogql(`
+        SELECT count() AS logins, uniqExact(distinct_id) AS unique_users
+        FROM (
+          SELECT distinct_id, properties.$session_id
+          FROM events
+          WHERE event = '$pageview'
+            AND properties.$current_url LIKE '%/dashboard%'
+            AND timestamp >= now() - INTERVAL 30 DAY
+          GROUP BY distinct_id, properties.$session_id
+        )
+      `),
+
+      // Logins por día (30d)
+      hogql(`
+        SELECT toDate(min_ts) AS day, count() AS logins
+        FROM (
+          SELECT distinct_id, properties.$session_id, min(timestamp) AS min_ts
+          FROM events
+          WHERE event = '$pageview'
+            AND properties.$current_url LIKE '%/dashboard%'
+            AND timestamp >= now() - INTERVAL 30 DAY
+          GROUP BY distinct_id, properties.$session_id
+        )
+        GROUP BY day
+        ORDER BY day ASC
+      `),
+
+      // Clicks en landing/público — autocapture (30d)
+      hogql(`
+        SELECT
+          coalesce(nullIf(trim(properties.$el_text), ''), '[sin texto]') AS element,
+          count() AS clicks,
+          uniqExact(distinct_id) AS unique_users
+        FROM events
+        WHERE event = '$autocapture'
+          AND properties.$event_type = 'click'
+          AND properties.$current_url NOT LIKE '%/backoffice%'
+          AND properties.$current_url NOT LIKE '%/dashboard%'
+          AND timestamp >= now() - INTERVAL 30 DAY
+        GROUP BY element
+        HAVING element != '[sin texto]'
+        ORDER BY clicks DESC
+        LIMIT 15
+      `),
+
+      // Actividad por usuario — top 20 por sesiones (30d)
+      hogql(`
+        SELECT
+          distinct_id,
+          uniqExact(properties.$session_id) AS sessions,
+          count() AS pageviews,
+          argMax(
+            if(properties.$referring_domain IS NULL OR properties.$referring_domain = '',
+               '(directo)', properties.$referring_domain),
+            timestamp
+          ) AS last_source
+        FROM events
+        WHERE event = '$pageview'
+          AND timestamp >= now() - INTERVAL 30 DAY
+        GROUP BY distinct_id
+        ORDER BY sessions DESC
+        LIMIT 20
+      `),
     ])
 
     const s7  = r7d.results?.[0]  ?? [0, 0, 0]
@@ -214,6 +291,22 @@ export async function GET(req: NextRequest) {
       })),
       countries: (rCountries.results ?? []).map((r: unknown[]) => ({
         country: String(r[0]), visits: Number(r[1]), visitors: Number(r[2]),
+      })),
+      realtime: (rRealtime.results ?? []).map((r: unknown[]) => ({
+        path: String(r[0] || '/'), active: Number(r[1]),
+      })),
+      logins: {
+        total:  Number(rLogins.results?.[0]?.[0] ?? 0),
+        unique: Number(rLogins.results?.[0]?.[1] ?? 0),
+      },
+      loginsByDay: (rLoginsByDay.results ?? []).map((r: unknown[]) => ({
+        day: String(r[0]), count: Number(r[1]),
+      })),
+      clicks: (rClicks.results ?? []).map((r: unknown[]) => ({
+        element: String(r[0]), clicks: Number(r[1]), users: Number(r[2]),
+      })),
+      userActivity: (rUsers.results ?? []).map((r: unknown[]) => ({
+        id: String(r[0]), sessions: Number(r[1]), pageviews: Number(r[2]), source: String(r[3]),
       })),
     })
   } catch (e: any) {
