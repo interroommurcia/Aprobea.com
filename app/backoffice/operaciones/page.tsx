@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import type { PDFZone } from '@/components/PDFVisualEditor'
+import { processPdfClient } from '@/lib/processPdf'
 import TicketProgress from '@/components/TicketProgress'
 
 const PDFVisualEditor = dynamic(() => import('@/components/PDFVisualEditor'), { ssr: false, loading: () => <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '2rem', textAlign: 'center' }}>Cargando editor…</div> })
@@ -148,30 +149,22 @@ export default function OperacionesPage() {
     setUploading(false)
   }
 
-  // Generate preview via API
+  // Generate preview client-side (avoids server body size limits)
   async function handlePreview() {
     if (!file) return
     setPreviewing(true)
     setPreviewError('')
-    const fd = new FormData()
-    fd.append('pdf', file)
-    fd.append('zones', JSON.stringify(zones))
-    fd.append('branding', JSON.stringify(branding))
-    const res = await fetch('/api/backoffice/pdf-redact', { method: 'POST', body: fd })
-    if (!res.ok) {
-      const e = await res.json().catch(async () => {
-        const txt = await res.text().catch(() => '')
-        return { error: txt || `HTTP ${res.status}` }
-      })
-      setPreviewError(e.error || 'Error procesando el PDF')
+    try {
+      const out  = await processPdfClient(file, zones, branding)
+      const blob = new Blob([out], { type: 'application/pdf' })
+      setPreviewBlob(blob)
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(URL.createObjectURL(blob))
+    } catch (e: any) {
+      setPreviewError(e.message || 'Error procesando el PDF')
+    } finally {
       setPreviewing(false)
-      return
     }
-    const blob = await res.blob()
-    setPreviewBlob(blob)
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(URL.createObjectURL(blob))
-    setPreviewing(false)
   }
 
   // Publish with processed PDF
