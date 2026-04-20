@@ -235,8 +235,31 @@ export default function ArticulosPage() {
         credentials: 'include',
       })
       if (res.status === 401) { setError('Sesión caducada — vuelve a iniciar sesión en /backoffice'); return }
-      const data = await res.json()
-      if (!res.ok) { setError(data.error || 'Error generando artículo'); return }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Error generando artículo' }))
+        setError(data.error || 'Error generando artículo')
+        return
+      }
+
+      // Leer stream de texto y parsear JSON al finalizar
+      const reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let raw = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        raw += decoder.decode(value, { stream: true })
+      }
+
+      const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/) || raw.match(/```\s*([\s\S]*?)\s*```/)
+      let data: any
+      try {
+        data = JSON.parse(jsonMatch ? jsonMatch[1] : raw)
+      } catch {
+        const objMatch = raw.match(/\{[\s\S]*\}/)
+        if (!objMatch) { setError('Respuesta inválida del modelo'); return }
+        try { data = JSON.parse(objMatch[0]) } catch { setError('Error parseando respuesta del modelo'); return }
+      }
       setArticle(data)
 
       // Segunda llamada: generar imágenes con Gemini (no bloquea el preview)

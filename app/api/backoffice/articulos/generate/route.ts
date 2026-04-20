@@ -84,25 +84,32 @@ export async function POST(req: NextRequest) {
       messages = [{ role: 'user', content: buildPrompt(keyword, tone, material || null) }]
     }
 
-    const claudeResponse = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       system: SYSTEM,
       messages,
     })
 
-    const raw = claudeResponse.content[0].type === 'text' ? claudeResponse.content[0].text : ''
-    const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/) || raw.match(/```\s*([\s\S]*?)\s*```/)
-    let article: any
-    try {
-      article = JSON.parse(jsonMatch ? jsonMatch[1] : raw)
-    } catch {
-      const objMatch = raw.match(/\{[\s\S]*\}/)
-      if (!objMatch) return NextResponse.json({ error: 'Respuesta inválida del modelo', raw }, { status: 500 })
-      article = JSON.parse(objMatch[0])
-    }
+    const encoder = new TextEncoder()
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of stream) {
+            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+              controller.enqueue(encoder.encode(chunk.delta.text))
+            }
+          }
+          controller.close()
+        } catch (err: any) {
+          controller.error(err)
+        }
+      },
+    })
 
-    return NextResponse.json(article)
+    return new Response(readable, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-Accel-Buffering': 'no' },
+    })
   } catch (err: any) {
     console.error('[articulos/generate]', err)
     return NextResponse.json({ error: err.message || 'Error interno' }, { status: 500 })
