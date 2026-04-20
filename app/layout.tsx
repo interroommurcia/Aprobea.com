@@ -4,6 +4,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { PostHogProvider } from "@/components/PostHogProvider";
 import { Suspense } from "react";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
+import Script from "next/script";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -43,6 +44,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" className={`${cormorant.variable} ${outfit.variable}`}>
+      <Script
+        async
+        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6067028856246284"
+        crossOrigin="anonymous"
+        strategy="afterInteractive"
+      />
       <body>
         <ThemeProvider>
           <Suspense fallback={null}>
