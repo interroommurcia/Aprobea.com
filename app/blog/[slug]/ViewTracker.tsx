@@ -6,7 +6,7 @@ export function ViewTracker({ slug }: { slug: string }) {
     fetch('/api/blog/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ slug, event: 'view' }),
+      body: JSON.stringify({ slug, event: 'view', referrer: document.referrer || null }),
     })
   }, [slug])
   return null

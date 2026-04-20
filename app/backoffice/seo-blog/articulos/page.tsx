@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { ArticleEditor, type EditableArticle } from './ArticleEditor'
 
 type ArticleSection = { h2: string; content: string; highlight: string | null; imagePrompt?: string; image?: string }
 type FAQ = { question: string; answer: string }
@@ -156,6 +157,24 @@ export default function ArticulosPage() {
   const [loadingList, setLoadingList] = useState(true)
   const pdfRef = useRef<HTMLInputElement>(null)
   const [pdfName, setPdfName] = useState('')
+  const [editingArticle, setEditingArticle] = useState<EditableArticle | null>(null)
+  const [expandedStats, setExpandedStats] = useState<string | null>(null)
+  const [statsData, setStatsData] = useState<Record<string, any>>({})
+
+  async function openEditor(id: string) {
+    const res = await fetch(`/api/backoffice/articulos?id=${id}`, { credentials: 'include' })
+    if (!res.ok) return
+    const data = await res.json()
+    setEditingArticle({ id: data.id, slug: data.slug, meta_title: data.meta_title, meta_description: data.meta_description, h1: data.h1, intro: data.intro, sections: data.sections ?? [], cta: data.cta, faq: data.faq ?? [] })
+  }
+
+  async function toggleStats(slug: string) {
+    if (expandedStats === slug) { setExpandedStats(null); return }
+    setExpandedStats(slug)
+    if (statsData[slug]) return
+    const res = await fetch(`/api/backoffice/articulos/stats?slug=${slug}`, { credentials: 'include' })
+    if (res.ok) setStatsData(prev => ({ ...prev, [slug]: await res.json() }))
+  }
 
   const loadList = useCallback(async () => {
     setLoadingList(true)
@@ -342,6 +361,13 @@ export default function ArticulosPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+      {editingArticle && (
+        <ArticleEditor
+          article={editingArticle}
+          onClose={() => setEditingArticle(null)}
+          onSaved={() => { loadList(); setEditingArticle(null) }}
+        />
+      )}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-0)', marginBottom: '0.35rem' }}>
           Generador de Artículos SEO
@@ -513,13 +539,19 @@ export default function ArticulosPage() {
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', gap: '6px', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                <button onClick={() => openEditor(art.id)} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'transparent', color: 'var(--gold-200)' }}>
+                  ✏️ Editar
+                </button>
                 {art.estado === 'borrador' ? (
                   <button onClick={() => toggleEstado(art.id, 'publicado')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'rgba(201,160,67,0.08)', color: 'var(--gold-100)', fontWeight: 600 }}>
                     Publicar
                   </button>
                 ) : (
                   <>
+                    <button onClick={() => toggleStats(art.slug)} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: expandedStats === art.slug ? 'rgba(201,160,67,0.12)' : 'transparent', color: 'var(--gold-200)' }}>
+                      📊 Stats
+                    </button>
                     <a href={`/blog/${art.slug}`} target="_blank" rel="noopener" style={{ fontSize: '0.72rem', color: 'var(--gold-200)', textDecoration: 'none', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'transparent' }}>Ver ↗</a>
                     <button onClick={() => toggleEstado(art.id, 'borrador')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'transparent', color: 'var(--text-3)' }}>
                       Despublicar
@@ -531,6 +563,47 @@ export default function ArticulosPage() {
                 </button>
               </div>
             </div>
+            {/* Stats expandido */}
+            {expandedStats === art.slug && (
+              <div style={{ padding: '1rem 1.25rem', background: 'var(--bg-2)', borderTop: '0.5px solid var(--gold-border)', borderRadius: '0 0 var(--radius) var(--radius)' }}>
+                {!statsData[art.slug] ? (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>Cargando…</span>
+                ) : statsData[art.slug].total === 0 ? (
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>Sin visitas registradas aún.</span>
+                ) : (
+                  <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Fuentes de tráfico</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {statsData[art.slug].sources.map((s: any) => (
+                          <div key={s.source} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: `${Math.round((s.count / statsData[art.slug].total) * 80)}px`, minWidth: '4px', height: '6px', background: '#C9A043', borderRadius: '3px', opacity: 0.7 }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-1)' }}>{s.label}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginLeft: 'auto' }}>{s.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {statsData[art.slug].last7.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>Últimos 7 días</div>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-end', height: '40px' }}>
+                          {statsData[art.slug].last7.map((d: any) => {
+                            const max = Math.max(...statsData[art.slug].last7.map((x: any) => x.count))
+                            return (
+                              <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                <div style={{ width: '20px', background: '#C9A043', borderRadius: '2px 2px 0 0', height: `${max ? Math.round((d.count / max) * 36) + 4 : 4}px`, opacity: 0.75 }} />
+                                <span style={{ fontSize: '0.6rem', color: 'var(--text-3)' }}>{d.date.slice(5)}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           )
 
           return (

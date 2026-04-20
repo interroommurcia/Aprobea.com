@@ -7,6 +7,14 @@ function isAdmin(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const id = req.nextUrl.searchParams.get('id')
+  if (id) {
+    const { data, error } = await supabaseAdmin.from('articulos').select('*').eq('id', id).single()
+    if (error || !data) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    return NextResponse.json(data)
+  }
+
   const { data, error } = await supabaseAdmin
     .from('articulos')
     .select('id, slug, meta_title, h1, keyword, estado, created_at, hero_image_thumb, views, cta_clicks')
@@ -49,6 +57,22 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from('articulos')
     .update({ estado, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+export async function PUT(req: NextRequest) {
+  if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const { id, ...fields } = await req.json()
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+
+  const { data, error } = await supabaseAdmin
+    .from('articulos')
+    .update({ ...fields, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single()
