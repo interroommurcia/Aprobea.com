@@ -484,54 +484,79 @@ export default function ArticulosPage() {
         </div>
       )}
 
-      {/* ── Lista de artículos guardados ── */}
+      {/* ── Lista de artículos ── */}
       <div style={{ marginTop: '3rem', borderTop: '0.5px solid var(--gold-border)', paddingTop: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-0)' }}>Artículos guardados</h2>
-          <button onClick={loadList} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: '0.78rem' }}>↻ Actualizar</button>
-        </div>
+        {(() => {
+          const borradores = savedArticles.filter(a => a.estado === 'borrador')
+          const publicados = savedArticles.filter(a => a.estado === 'publicado')
 
-        {loadingList ? (
-          <div style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>Cargando…</div>
-        ) : savedArticles.length === 0 ? (
-          <div style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>No hay artículos guardados aún.</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {savedArticles.map(art => (
-              <div key={art.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.85rem 1rem', background: 'var(--bg-1)', borderRadius: 'var(--radius)', border: '0.5px solid var(--gold-border)' }}>
-                {art.hero_image_thumb && (
-                  <img src={art.hero_image_thumb} alt={art.h1} style={{ width: '48px', height: '27px', objectFit: 'cover', borderRadius: '4px', flexShrink: 0 }} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{art.h1}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '2px' }}>
-                    /blog/{art.slug} · {new Date(art.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                </div>
-                <span style={{ flexShrink: 0, fontSize: '0.7rem', fontWeight: 600, padding: '3px 8px', borderRadius: '6px', background: art.estado === 'publicado' ? 'rgba(109,200,109,0.12)' : 'rgba(201,160,67,0.1)', color: art.estado === 'publicado' ? '#6dc86d' : '#C9A043', border: `1px solid ${art.estado === 'publicado' ? 'rgba(109,200,109,0.2)' : 'rgba(201,160,67,0.2)'}` }}>
-                  {art.estado === 'publicado' ? 'Publicado' : 'Borrador'}
-                </span>
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  {art.estado === 'publicado' ? (
-                    <a href={`/blog/${art.slug}`} target="_blank" rel="noopener" style={{ fontSize: '0.72rem', color: 'var(--gold-200)', textDecoration: 'none', padding: '4px 8px', border: '1px solid var(--gold-border)', borderRadius: '4px' }}>Ver ↗</a>
-                  ) : (
-                    <button onClick={() => toggleEstado(art.id, 'publicado')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '4px 8px', border: '1px solid var(--gold-border)', borderRadius: '4px', background: 'transparent', color: 'var(--gold-200)' }}>
-                      Publicar
-                    </button>
-                  )}
-                  {art.estado === 'publicado' && (
-                    <button onClick={() => toggleEstado(art.id, 'borrador')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '4px 8px', border: '1px solid var(--gold-border)', borderRadius: '4px', background: 'transparent', color: 'var(--text-3)' }}>
-                      Despublicar
-                    </button>
-                  )}
-                  <button onClick={() => deleteArticle(art.id)} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '4px 8px', border: '1px solid rgba(238,0,85,0.2)', borderRadius: '4px', background: 'transparent', color: '#ee0055' }}>
-                    Eliminar
-                  </button>
+          const ArticleCard = ({ art }: { art: SavedArticle }) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', background: 'var(--bg-1)', borderRadius: 'var(--radius)', border: '0.5px solid var(--gold-border)', transition: 'border-color 0.2s' }}>
+              {art.hero_image_thumb
+                ? <img src={art.hero_image_thumb} alt={art.h1} style={{ width: '64px', height: '36px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
+                : <div style={{ width: '64px', height: '36px', borderRadius: '6px', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', opacity: 0.4 }}>✍️</div>
+              }
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{art.h1}</div>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                  {art.keyword && <span style={{ fontSize: '0.7rem', color: 'var(--gold-200)', background: 'rgba(201,160,67,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(201,160,67,0.15)' }}>{art.keyword}</span>}
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
+                    {new Date(art.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: 'monospace' }}>/blog/{art.slug}</span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                {art.estado === 'borrador' ? (
+                  <button onClick={() => toggleEstado(art.id, 'publicado')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'rgba(201,160,67,0.08)', color: 'var(--gold-100)', fontWeight: 600 }}>
+                    Publicar
+                  </button>
+                ) : (
+                  <>
+                    <a href={`/blog/${art.slug}`} target="_blank" rel="noopener" style={{ fontSize: '0.72rem', color: 'var(--gold-200)', textDecoration: 'none', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'transparent' }}>Ver ↗</a>
+                    <button onClick={() => toggleEstado(art.id, 'borrador')} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid var(--gold-border)', borderRadius: '6px', background: 'transparent', color: 'var(--text-3)' }}>
+                      Despublicar
+                    </button>
+                  </>
+                )}
+                <button onClick={() => deleteArticle(art.id)} style={{ fontSize: '0.72rem', cursor: 'pointer', padding: '5px 10px', border: '1px solid rgba(238,0,85,0.2)', borderRadius: '6px', background: 'transparent', color: '#ee0055' }}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          )
+
+          return (
+            <>
+              {/* Publicados */}
+              <div style={{ marginBottom: '2.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-0)' }}>Artículos publicados</h2>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '20px', background: 'rgba(109,200,109,0.12)', color: '#6dc86d', border: '1px solid rgba(109,200,109,0.2)' }}>{publicados.length}</span>
+                  </div>
+                  <button onClick={loadList} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: '0.78rem' }}>↻</button>
+                </div>
+                {loadingList ? <div style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>Cargando…</div>
+                  : publicados.length === 0 ? <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '1rem 0' }}>No hay artículos publicados aún.</div>
+                  : <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{publicados.map(a => <ArticleCard key={a.id} art={a} />)}</div>
+                }
+              </div>
+
+              {/* Borradores */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-0)' }}>Guardados en borrador</h2>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '20px', background: 'rgba(201,160,67,0.1)', color: '#C9A043', border: '1px solid rgba(201,160,67,0.2)' }}>{borradores.length}</span>
+                </div>
+                {loadingList ? <div style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>Cargando…</div>
+                  : borradores.length === 0 ? <div style={{ color: 'var(--text-3)', fontSize: '0.82rem', padding: '1rem 0' }}>No hay borradores.</div>
+                  : <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>{borradores.map(a => <ArticleCard key={a.id} art={a} />)}</div>
+                }
+              </div>
+            </>
+          )
+        })()}
       </div>
     </div>
   )
