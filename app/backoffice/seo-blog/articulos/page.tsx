@@ -179,11 +179,12 @@ export default function ArticulosPage() {
     }
 
     try {
-      const res = await fetch('/api/backoffice/articulos/generate', { method: 'POST', headers, body })
+      const res = await fetch('/api/backoffice/articulos/generate', { method: 'POST', headers, body, credentials: 'include' })
+      if (res.status === 401) { setError('Sesión caducada — vuelve a iniciar sesión en /backoffice'); return }
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error generando artículo'); return }
       setArticle(data)
-    } catch { setError('Error de conexión') }
+    } catch (e: any) { setError('Error de conexión: ' + (e?.message ?? 'desconocido')) }
     finally { setLoading(false) }
   }
 
