@@ -157,7 +157,7 @@ export default function ArticulosPage() {
 
   const loadList = useCallback(async () => {
     setLoadingList(true)
-    const res = await fetch('/api/backoffice/articulos')
+    const res = await fetch('/api/backoffice/articulos', { credentials: 'include' })
     if (res.ok) setSavedArticles(await res.json())
     setLoadingList(false)
   }, [])
