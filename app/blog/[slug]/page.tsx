@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { ViewTracker, CtaLink } from './ViewTracker'
 
 type Section = { h2: string; content: string; highlight: string | null; image?: string }
 type FAQ = { question: string; answer: string }
@@ -86,6 +87,7 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
 
   return (
     <main style={{ minHeight: '100vh', background: '#fff', color: '#1a1a1a', fontFamily: 'Georgia, "Times New Roman", serif' }}>
+      <ViewTracker slug={art.slug} />
       <article style={{ maxWidth: '720px', margin: '0 auto', padding: '4rem 1.5rem 6rem' }}>
 
         {/* Categoría + fecha */}
@@ -148,10 +150,10 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
             <p style={{ fontSize: '0.97rem', color: '#444', marginBottom: '1rem', lineHeight: 1.7, fontFamily: 'system-ui, sans-serif' }}>
               {art.cta}
             </p>
-            <a href="https://gruposkyline.es/contacto" target="_blank" rel="noopener noreferrer"
+            <CtaLink slug={art.slug} href="https://gruposkyline.es/contacto"
               style={{ display: 'inline-block', background: '#1a1a1a', color: '#fff', padding: '12px 24px', borderRadius: '4px', fontWeight: 600, textDecoration: 'none', fontSize: '0.88rem', fontFamily: 'system-ui, sans-serif' }}>
               Contactar con Grupo Skyline →
-            </a>
+            </CtaLink>
           </div>
         )}
 

@@ -32,6 +32,8 @@ type SavedArticle = {
   estado: 'borrador' | 'publicado'
   created_at: string
   hero_image_thumb: string | null
+  views: number | null
+  cta_clicks: number | null
 }
 
 function generateHTML(article: Article): string {
@@ -498,12 +500,17 @@ export default function ArticulosPage() {
               }
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{art.h1}</div>
-                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '3px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '3px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {art.keyword && <span style={{ fontSize: '0.7rem', color: 'var(--gold-200)', background: 'rgba(201,160,67,0.08)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(201,160,67,0.15)' }}>{art.keyword}</span>}
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>
                     {new Date(art.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-3)', fontFamily: 'monospace' }}>/blog/{art.slug}</span>
+                  {art.estado === 'publicado' && (
+                    <>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-2)' }}>👁 <strong>{art.views ?? 0}</strong></span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-2)' }}>🖱 <strong>{art.cta_clicks ?? 0}</strong></span>
+                    </>
+                  )}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>

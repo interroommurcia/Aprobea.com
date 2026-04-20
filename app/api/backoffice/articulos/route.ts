@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { data, error } = await supabaseAdmin
     .from('articulos')
-    .select('id, slug, meta_title, h1, keyword, estado, created_at, hero_image_thumb')
+    .select('id, slug, meta_title, h1, keyword, estado, created_at, hero_image_thumb, views, cta_clicks')
     .order('created_at', { ascending: false })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
