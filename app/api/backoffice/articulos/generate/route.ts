@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
+export const maxDuration = 60
+
 function isAdmin(req: NextRequest) {
   return req.cookies.get('admin_session')?.value === '1'
 }
