@@ -165,7 +165,7 @@ export default function ArticulosPage() {
     const res = await fetch(`/api/backoffice/articulos?id=${id}`, { credentials: 'include' })
     if (!res.ok) return
     const data = await res.json()
-    setEditingArticle({ id: data.id, slug: data.slug, meta_title: data.meta_title, meta_description: data.meta_description, h1: data.h1, intro: data.intro, sections: data.sections ?? [], cta: data.cta, faq: data.faq ?? [] })
+    setEditingArticle({ id: data.id, slug: data.slug, meta_title: data.meta_title, meta_description: data.meta_description, h1: data.h1, intro: data.intro, sections: data.sections ?? [], cta: data.cta, faq: data.faq ?? [], keyword: data.keyword ?? null, hero_image: data.hero_image ?? null })
   }
 
   async function toggleStats(slug: string) {

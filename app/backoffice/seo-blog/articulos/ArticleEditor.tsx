@@ -69,30 +69,36 @@ export function ArticleEditor({ article: initial, onClose, onSaved }: {
   async function save() {
     setSaving(true)
     setError('')
-    const res = await fetch('/api/backoffice/articulos', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({
-        id: art.id,
-        slug: art.slug,
-        meta_title: art.meta_title,
-        meta_description: art.meta_description,
-        h1: art.h1,
-        intro: art.intro,
-        sections: art.sections,
-        cta: art.cta,
-        faq: art.faq,
-      }),
-    })
-    if (!res.ok) {
-      const d = await res.json()
-      setError(d.error || 'Error guardando')
-    } else {
-      onSaved()
-      onClose()
+    try {
+      const res = await fetch('/api/backoffice/articulos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: art.id,
+          slug: art.slug,
+          meta_title: art.meta_title,
+          meta_description: art.meta_description,
+          h1: art.h1,
+          intro: art.intro,
+          sections: art.sections,
+          cta: art.cta,
+          faq: art.faq,
+          keyword: art.keyword ?? null,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || `Error ${res.status} guardando`)
+      } else {
+        onSaved()
+        onClose()
+      }
+    } catch (e: any) {
+      setError('Error de red: ' + (e?.message ?? 'desconocido'))
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const tabBtn = (tab: typeof activeTab, label: string) => (
