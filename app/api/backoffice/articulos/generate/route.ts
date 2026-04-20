@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
+export const runtime = 'edge'
 export const maxDuration = 60
 
 function isAdmin(req: NextRequest) {
@@ -72,7 +73,10 @@ export async function POST(req: NextRequest) {
       const pdfRes = await fetch(pdfUrl)
       if (!pdfRes.ok) return NextResponse.json({ error: 'No se pudo descargar el PDF' }, { status: 500 })
       const bytes = await pdfRes.arrayBuffer()
-      const base64 = Buffer.from(bytes).toString('base64')
+      const uint8 = new Uint8Array(bytes)
+      let binary = ''
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i])
+      const base64 = btoa(binary)
       messages = [{
         role: 'user',
         content: [
