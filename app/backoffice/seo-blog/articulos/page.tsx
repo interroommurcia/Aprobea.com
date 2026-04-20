@@ -162,12 +162,24 @@ export default function ArticulosPage() {
   async function generate() {
     if (!keyword.trim()) { setError('Introduce la keyword principal'); return }
     setError(''); setLoading(true); setArticle(null); setSavedId(null); setSavedEstado(null)
-    const fd = new FormData()
-    fd.append('keyword', keyword.trim()); fd.append('tone', tone)
-    if (material.trim()) fd.append('material', material.trim())
-    if (pdfRef.current?.files?.[0]) fd.append('pdf', pdfRef.current.files[0])
+    const hasPdf = !!pdfRef.current?.files?.[0]
+    let body: BodyInit
+    let headers: Record<string, string> = {}
+
+    if (hasPdf) {
+      const fd = new FormData()
+      fd.append('keyword', keyword.trim())
+      fd.append('tone', tone)
+      if (material.trim()) fd.append('material', material.trim())
+      fd.append('pdf', pdfRef.current!.files![0])
+      body = fd
+    } else {
+      body = JSON.stringify({ keyword: keyword.trim(), tone, material: material.trim() || null })
+      headers['Content-Type'] = 'application/json'
+    }
+
     try {
-      const res = await fetch('/api/backoffice/articulos/generate', { method: 'POST', body: fd })
+      const res = await fetch('/api/backoffice/articulos/generate', { method: 'POST', headers, body })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error generando artículo'); return }
       setArticle(data)

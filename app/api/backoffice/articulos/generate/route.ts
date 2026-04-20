@@ -58,11 +58,21 @@ export async function POST(req: NextRequest) {
   const anthropic = new Anthropic({ apiKey })
 
   try {
-    const formData = await req.formData()
-    const material = formData.get('material') as string | null
-    const keyword = formData.get('keyword') as string
-    const tone = (formData.get('tone') as string) || 'profesional'
-    const pdfFile = formData.get('pdf') as File | null
+    const contentType = req.headers.get('content-type') ?? ''
+    let keyword = '', material: string | null = null, tone = 'profesional', pdfFile: File | null = null
+
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await req.formData()
+      keyword = formData.get('keyword') as string
+      material = formData.get('material') as string | null
+      tone = (formData.get('tone') as string) || 'profesional'
+      pdfFile = formData.get('pdf') as File | null
+    } else {
+      const body = await req.json()
+      keyword = body.keyword
+      material = body.material ?? null
+      tone = body.tone || 'profesional'
+    }
 
     if (!keyword) return NextResponse.json({ error: 'Keyword requerida' }, { status: 400 })
 
