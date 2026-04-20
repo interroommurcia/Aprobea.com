@@ -19,8 +19,7 @@ export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const body = await req.json()
   const { slug, meta_title, meta_description, h1, intro, sections, cta, faq,
-          hero_image, hero_image_thumb, hero_image_credit, hero_image_credit_url,
-          hero_image_query, hero_image_source, keyword } = body
+          hero_image, hero_image_thumb, hero_image_credit, hero_image_credit_url, keyword } = body
 
   if (!slug || !h1) return NextResponse.json({ error: 'slug y h1 requeridos' }, { status: 400 })
 
@@ -31,7 +30,7 @@ export async function POST(req: NextRequest) {
       sections: sections ?? [], cta,
       faq: faq ?? [],
       hero_image, hero_image_thumb, hero_image_credit,
-      hero_image_credit_url, hero_image_query, hero_image_source, keyword,
+      hero_image_credit_url, keyword,
       estado: 'borrador',
       updated_at: new Date().toISOString(),
     }, { onConflict: 'slug' })
