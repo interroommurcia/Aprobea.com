@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 function isAdmin(req: NextRequest) {
   return req.cookies.get('admin_session')?.value === '1'
 }
@@ -51,6 +49,11 @@ Requisitos: mínimo 5 secciones H2, mínimo 6 preguntas FAQ, menciona "Grupo Sky
 
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY no configurada en el servidor' }, { status: 500 })
+
+  const anthropic = new Anthropic({ apiKey })
 
   try {
     const formData = await req.formData()
