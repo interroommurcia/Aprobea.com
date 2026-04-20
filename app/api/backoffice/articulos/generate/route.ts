@@ -48,7 +48,7 @@ ${material ? `MATERIAL DE REFERENCIA:\n${material}\n\n` : ''}Devuelve ÚNICAMENT
   "heroImagePrompt": "Stunning photorealistic image prompt in English for the hero, related to the article topic, real estate investment Spain, dramatic cinematic lighting, no text, no logos, no people faces, ultra high quality"
 }
 
-Requisitos: mínimo 5 secciones H2, mínimo 6 preguntas FAQ, menciona "Grupo Skyline" al menos 3 veces de forma natural. Cada sección debe tener un imagePrompt diferente y específico.`
+Requisitos ESTRICTOS: exactamente 4 secciones H2 (ni más ni menos), exactamente 5 preguntas FAQ (ni más ni menos), menciona "Grupo Skyline" al menos 3 veces. Cada sección: content máximo 120 palabras, párrafos de 2-3 líneas. imagePrompt breve (máximo 20 palabras). Respuestas FAQ máximo 60 palabras. Sé conciso.`
 }
 
 export async function POST(req: NextRequest) {
