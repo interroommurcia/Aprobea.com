@@ -250,6 +250,9 @@ export default function ArticulosPage() {
         if (done) break
         raw += decoder.decode(value, { stream: true })
       }
+      raw += decoder.decode() // flush final
+
+      console.log('[generate] raw length:', raw.length, '| preview:', raw.slice(0, 120))
 
       const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/) || raw.match(/```\s*([\s\S]*?)\s*```/)
       let data: any
@@ -258,7 +261,11 @@ export default function ArticulosPage() {
       } catch {
         const objMatch = raw.match(/\{[\s\S]*\}/)
         if (!objMatch) { setError('Respuesta inválida del modelo'); return }
-        try { data = JSON.parse(objMatch[0]) } catch { setError('Error parseando respuesta del modelo'); return }
+        try { data = JSON.parse(objMatch[0]) } catch (e2: any) {
+          console.error('[generate] parse error:', e2?.message, '| tail:', raw.slice(-200))
+          setError('Error parseando respuesta del modelo')
+          return
+        }
       }
       setArticle(data)
 
