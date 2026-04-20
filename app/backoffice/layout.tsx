@@ -100,6 +100,8 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
     { href: '/backoffice/ia-privada', label: 'IA Privada', icon: '🔒', sub: true },
     { href: '/backoffice/base-clientes', label: 'Base clientes', icon: '📁', sub: true },
     { href: '/backoffice/pagos', label: 'Pagos', icon: '💳' },
+    { href: '/backoffice/seo-blog', label: 'SEO / Blog', icon: '✍️' },
+    { href: '/backoffice/seo-blog/articulos', label: 'Artículos', icon: '📝', sub: true },
     { href: '/backoffice/configuracion', label: 'Configuración', icon: '⚙' },
   ]
 
