@@ -142,6 +142,7 @@ export default function ArticulosPage() {
   const [keyword, setKeyword] = useState('')
   const [tone, setTone] = useState<'profesional' | 'cercano'>('profesional')
   const [loading, setLoading] = useState(false)
+  const [loadingImages, setLoadingImages] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [article, setArticle] = useState<Article | null>(null)
@@ -162,6 +163,43 @@ export default function ArticulosPage() {
   }, [])
 
   useEffect(() => { loadList() }, [loadList])
+
+  async function generateImages(art: Article) {
+    if (!art.heroImagePrompt) return
+    setLoadingImages(true)
+    try {
+      const sectionPrompts = art.sections
+        .map(s => s.imagePrompt)
+        .filter(Boolean)
+        .slice(0, 3) as string[]
+
+      const res = await fetch('/api/backoffice/articulos/generate-images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: art.slug, heroImagePrompt: art.heroImagePrompt, sectionPrompts }),
+        credentials: 'include',
+      })
+      if (!res.ok) return
+      const { images } = await res.json()
+
+      setArticle(prev => {
+        if (!prev) return prev
+        const updated = { ...prev }
+        if (images.hero) {
+          updated.heroImage = images.hero
+          updated.heroImageThumb = images.hero
+          updated.heroImageSource = 'gemini'
+          updated.heroImageCredit = null
+          updated.heroImageCreditUrl = null
+        }
+        updated.sections = prev.sections.map((s, i) =>
+          images[`s${i}`] ? { ...s, image: images[`s${i}`] } : s
+        )
+        return updated
+      })
+    } catch { /* imágenes opcionales */ }
+    finally { setLoadingImages(false) }
+  }
 
   async function generate() {
     if (!keyword.trim()) { setError('Introduce la keyword principal'); return }
@@ -200,6 +238,11 @@ export default function ArticulosPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error generando artículo'); return }
       setArticle(data)
+
+      // Segunda llamada: generar imágenes con Gemini (no bloquea el preview)
+      if (process.env.NEXT_PUBLIC_GEMINI_ENABLED === 'true' || true) {
+        generateImages(data)
+      }
     } catch (e: any) { setError('Error: ' + (e?.message ?? 'desconocido')) }
     finally { setLoading(false) }
   }
@@ -380,7 +423,9 @@ export default function ArticulosPage() {
         {article && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Vista previa</span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                Vista previa {loadingImages && <span style={{ color: '#C9A043', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>· Generando imágenes IA…</span>}
+              </span>
               <div style={{ display: 'flex', gap: '4px' }}>
                 {(['mobile', 'desktop'] as const).map(m => (
                   <button key={m} onClick={() => setPreviewMode(m)} style={{ padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', border: previewMode === m ? '1.5px solid var(--gold-200)' : '1px solid var(--gold-border)', background: previewMode === m ? 'rgba(201,160,67,0.12)' : 'var(--bg-2)', color: previewMode === m ? 'var(--gold-100)' : 'var(--text-3)' }}>

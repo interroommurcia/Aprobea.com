@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const maxDuration = 60
 
@@ -45,49 +44,10 @@ ${material ? `MATERIAL DE REFERENCIA:\n${material}\n\n` : ''}Devuelve ÚNICAMENT
       "answer": "Respuesta concisa, útil y con mención natural a Grupo Skyline cuando aplique"
     }
   ],
-  "heroImagePrompt": "Stunning photorealistic image prompt in English for the hero, related to the article topic, real estate investment Spain, dramatic cinematic lighting, no text, no logos, ultra high quality"
+  "heroImagePrompt": "Stunning photorealistic image prompt in English for the hero, related to the article topic, real estate investment Spain, dramatic cinematic lighting, no text, no logos, no people faces, ultra high quality"
 }
 
 Requisitos: mínimo 5 secciones H2, mínimo 6 preguntas FAQ, menciona "Grupo Skyline" al menos 3 veces de forma natural. Cada sección debe tener un imagePrompt diferente y específico.`
-}
-
-async function generateImageGemini(prompt: string): Promise<Buffer | null> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) return null
-
-  const styledPrompt = `${prompt}. Style: ultra-realistic professional photography, 8K, award-winning architectural and real estate photography, golden hour or studio lighting, no watermarks, no text overlays, no logos`
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        instances: [{ prompt: styledPrompt }],
-        parameters: { sampleCount: 1, aspectRatio: '16:9', safetyFilterLevel: 'block_few' },
-      }),
-    }
-  )
-
-  if (!res.ok) return null
-  const data = await res.json()
-  const b64 = data?.predictions?.[0]?.bytesBase64Encoded
-  if (!b64) return null
-  return Buffer.from(b64, 'base64')
-}
-
-async function uploadImageToSupabase(buffer: Buffer, path: string): Promise<string | null> {
-  // Crear bucket si no existe
-  await supabaseAdmin.storage.createBucket('blog-imagenes', { public: true }).catch(() => {})
-
-  const { error } = await supabaseAdmin.storage
-    .from('blog-imagenes')
-    .upload(path, buffer, { contentType: 'image/jpeg', upsert: true })
-
-  if (error) return null
-
-  const { data } = supabaseAdmin.storage.from('blog-imagenes').getPublicUrl(path)
-  return data.publicUrl
 }
 
 export async function POST(req: NextRequest) {
@@ -107,7 +67,6 @@ export async function POST(req: NextRequest) {
 
     if (!keyword) return NextResponse.json({ error: 'Keyword requerida' }, { status: 400 })
 
-    // 1. Generar artículo con Claude
     let messages: Anthropic.MessageParam[]
     if (pdfUrl) {
       const pdfRes = await fetch(pdfUrl)
@@ -141,68 +100,6 @@ export async function POST(req: NextRequest) {
       const objMatch = raw.match(/\{[\s\S]*\}/)
       if (!objMatch) return NextResponse.json({ error: 'Respuesta inválida del modelo', raw }, { status: 500 })
       article = JSON.parse(objMatch[0])
-    }
-
-    // 2. Generar imágenes con Gemini en paralelo (hero + primeras 3 secciones)
-    const geminiKey = process.env.GEMINI_API_KEY
-    if (geminiKey && article.heroImagePrompt) {
-      const slug = article.slug || 'articulo'
-      const ts = Date.now()
-
-      // Preparar lista de imágenes a generar
-      const imageJobs: Array<{ prompt: string; path: string; target: 'hero' | number }> = [
-        { prompt: article.heroImagePrompt, path: `${slug}/${ts}-hero.jpg`, target: 'hero' },
-      ]
-
-      // Hasta 3 imágenes de sección
-      const sectionCount = Math.min(article.sections?.length ?? 0, 3)
-      for (let i = 0; i < sectionCount; i++) {
-        const prompt = article.sections[i]?.imagePrompt
-        if (prompt) imageJobs.push({ prompt, path: `${slug}/${ts}-s${i}.jpg`, target: i })
-      }
-
-      // Generación en paralelo
-      const results = await Promise.allSettled(
-        imageJobs.map(async (job) => {
-          const buffer = await generateImageGemini(job.prompt)
-          if (!buffer) return { target: job.target, url: null }
-          const url = await uploadImageToSupabase(buffer, job.path)
-          return { target: job.target, url }
-        })
-      )
-
-      for (const result of results) {
-        if (result.status !== 'fulfilled' || !result.value.url) continue
-        const { target, url } = result.value
-        if (target === 'hero') {
-          article.heroImage = url
-          article.heroImageThumb = url
-          article.heroImageCredit = null
-          article.heroImageCreditUrl = null
-          article.heroImageSource = 'gemini'
-        } else {
-          if (article.sections[target as number]) {
-            article.sections[target as number].image = url
-          }
-        }
-      }
-    } else if (process.env.UNSPLASH_ACCESS_KEY && article.heroImagePrompt) {
-      // Fallback a Unsplash si no hay Gemini
-      try {
-        const unsplashRes = await fetch(
-          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(article.heroImagePrompt)}&per_page=1&orientation=landscape`,
-          { headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` } }
-        )
-        const unsplashData = await unsplashRes.json()
-        if (unsplashData.results?.[0]) {
-          const img = unsplashData.results[0]
-          article.heroImage = img.urls.regular
-          article.heroImageThumb = img.urls.small
-          article.heroImageCredit = img.user.name
-          article.heroImageCreditUrl = img.user.links.html
-          article.heroImageSource = 'unsplash'
-        }
-      } catch { /* opcional */ }
     }
 
     return NextResponse.json(article)
