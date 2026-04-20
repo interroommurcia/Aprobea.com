@@ -161,3 +161,27 @@ ALTER TABLE operaciones_estudiadas
 
 ALTER TABLE operaciones_estudiadas
   ADD COLUMN IF NOT EXISTS fase_hipotecaria TEXT;
+
+-- ============================================================
+-- BLOG / ARTÍCULOS SEO
+-- ============================================================
+CREATE TABLE IF NOT EXISTS articulos (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug                  TEXT UNIQUE NOT NULL,
+  meta_title            TEXT,
+  meta_description      TEXT,
+  h1                    TEXT NOT NULL,
+  intro                 TEXT,
+  sections              JSONB DEFAULT '[]',
+  cta                   TEXT,
+  faq                   JSONB DEFAULT '[]',
+  hero_image            TEXT,
+  hero_image_thumb      TEXT,
+  hero_image_credit     TEXT,
+  hero_image_credit_url TEXT,
+  hero_image_query      TEXT,
+  keyword               TEXT,
+  estado                TEXT DEFAULT 'borrador' CHECK (estado IN ('borrador','publicado')),
+  created_at            TIMESTAMPTZ DEFAULT now(),
+  updated_at            TIMESTAMPTZ DEFAULT now()
+);
