@@ -252,8 +252,6 @@ export default function ArticulosPage() {
       }
       raw += decoder.decode() // flush final
 
-      console.log('[generate] raw length:', raw.length, '| preview:', raw.slice(0, 120))
-
       const jsonMatch = raw.match(/```json\s*([\s\S]*?)\s*```/) || raw.match(/```\s*([\s\S]*?)\s*```/)
       let data: any
       try {
@@ -466,7 +464,7 @@ export default function ArticulosPage() {
             </div>
             <div style={{ background: 'var(--bg-2)', borderRadius: '16px', border: '1px solid var(--gold-border)', display: 'flex', justifyContent: 'center', padding: previewMode === 'mobile' ? '2rem 1rem' : '1.5rem', minHeight: '600px', overflow: 'hidden' }}>
               <div style={{ width: previewMode === 'mobile' ? '390px' : '100%', maxWidth: '100%', background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 32px rgba(0,0,0,0.15)', transition: 'width 0.3s ease' }}>
-                <iframe srcDoc={previewHTML} style={{ width: '100%', border: 'none', display: 'block', minHeight: '800px' }} title="Vista previa" sandbox="allow-same-origin" />
+                <iframe srcDoc={previewHTML} style={{ width: '100%', border: 'none', display: 'block', minHeight: '800px' }} title="Vista previa" sandbox="allow-same-origin allow-scripts" />
               </div>
             </div>
           </div>
