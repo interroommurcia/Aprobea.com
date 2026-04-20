@@ -267,10 +267,6 @@ export default function ArticulosPage() {
       }
       setArticle(data)
 
-      // Segunda llamada: generar imágenes con Gemini (no bloquea el preview)
-      if (process.env.NEXT_PUBLIC_GEMINI_ENABLED === 'true' || true) {
-        generateImages(data)
-      }
     } catch (e: any) { setError('Error: ' + (e?.message ?? 'desconocido')) }
     finally { setLoading(false) }
   }
