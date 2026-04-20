@@ -150,7 +150,7 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
             <p style={{ fontSize: '0.97rem', color: '#444', marginBottom: '1rem', lineHeight: 1.7, fontFamily: 'system-ui, sans-serif' }}>
               {art.cta}
             </p>
-            <CtaLink slug={art.slug} href="https://gruposkyline.es/contacto"
+            <CtaLink slug={art.slug} href="https://gruposkyline.es"
               style={{ display: 'inline-block', background: '#1a1a1a', color: '#fff', padding: '12px 24px', borderRadius: '4px', fontWeight: 600, textDecoration: 'none', fontSize: '0.88rem', fontFamily: 'system-ui, sans-serif' }}>
               Contactar con Grupo Skyline →
             </CtaLink>
