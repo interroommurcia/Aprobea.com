@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type ArticleSection = { h2: string; content: string; highlight: string | null }
 type FAQ = { question: string; answer: string }
@@ -162,29 +163,41 @@ export default function ArticulosPage() {
   async function generate() {
     if (!keyword.trim()) { setError('Introduce la keyword principal'); return }
     setError(''); setLoading(true); setArticle(null); setSavedId(null); setSavedEstado(null)
-    const hasPdf = !!pdfRef.current?.files?.[0]
-    let body: BodyInit
-    let headers: Record<string, string> = {}
-
-    if (hasPdf) {
-      const fd = new FormData()
-      fd.append('keyword', keyword.trim())
-      fd.append('tone', tone)
-      if (material.trim()) fd.append('material', material.trim())
-      fd.append('pdf', pdfRef.current!.files![0])
-      body = fd
-    } else {
-      body = JSON.stringify({ keyword: keyword.trim(), tone, material: material.trim() || null })
-      headers['Content-Type'] = 'application/json'
-    }
-
     try {
-      const res = await fetch('/api/backoffice/articulos/generate', { method: 'POST', headers, body, credentials: 'include' })
+      let pdfUrl: string | null = null
+      const pdfFile = pdfRef.current?.files?.[0]
+
+      if (pdfFile) {
+        // 1. Obtener signed upload URL de Supabase
+        const tokenRes = await fetch('/api/backoffice/pdf-upload-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: pdfFile.name }),
+          credentials: 'include',
+        })
+        if (tokenRes.status === 401) { setError('Sesión caducada — vuelve a iniciar sesión en /backoffice'); return }
+        if (!tokenRes.ok) { setError('Error obteniendo token de subida'); return }
+        const { token, path, publicUrl } = await tokenRes.json()
+
+        // 2. Subir PDF directo a Supabase (no pasa por Vercel)
+        const { error: uploadError } = await supabase.storage
+          .from('operaciones-pdf')
+          .uploadToSignedUrl(path, token, pdfFile)
+        if (uploadError) { setError('Error subiendo PDF: ' + uploadError.message); return }
+        pdfUrl = publicUrl
+      }
+
+      const res = await fetch('/api/backoffice/articulos/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keyword: keyword.trim(), tone, material: material.trim() || null, pdfUrl }),
+        credentials: 'include',
+      })
       if (res.status === 401) { setError('Sesión caducada — vuelve a iniciar sesión en /backoffice'); return }
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error generando artículo'); return }
       setArticle(data)
-    } catch (e: any) { setError('Error de conexión: ' + (e?.message ?? 'desconocido')) }
+    } catch (e: any) { setError('Error: ' + (e?.message ?? 'desconocido')) }
     finally { setLoading(false) }
   }
 

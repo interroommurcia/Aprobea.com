@@ -58,36 +58,25 @@ export async function POST(req: NextRequest) {
   const anthropic = new Anthropic({ apiKey })
 
   try {
-    const contentType = req.headers.get('content-type') ?? ''
-    let keyword = '', material: string | null = null, tone = 'profesional', pdfFile: File | null = null
-
-    if (contentType.includes('multipart/form-data')) {
-      const formData = await req.formData()
-      keyword = formData.get('keyword') as string
-      material = formData.get('material') as string | null
-      tone = (formData.get('tone') as string) || 'profesional'
-      pdfFile = formData.get('pdf') as File | null
-    } else {
-      const body = await req.json()
-      keyword = body.keyword
-      material = body.material ?? null
-      tone = body.tone || 'profesional'
-    }
+    const body = await req.json()
+    const keyword: string = body.keyword
+    const material: string | null = body.material ?? null
+    const tone: string = body.tone || 'profesional'
+    const pdfUrl: string | null = body.pdfUrl ?? null
 
     if (!keyword) return NextResponse.json({ error: 'Keyword requerida' }, { status: 400 })
 
     let messages: Anthropic.MessageParam[]
 
-    if (pdfFile && pdfFile.size > 0) {
-      const bytes = await pdfFile.arrayBuffer()
+    if (pdfUrl) {
+      const pdfRes = await fetch(pdfUrl)
+      if (!pdfRes.ok) return NextResponse.json({ error: 'No se pudo descargar el PDF desde Supabase' }, { status: 500 })
+      const bytes = await pdfRes.arrayBuffer()
       const base64 = Buffer.from(bytes).toString('base64')
       messages = [{
         role: 'user',
         content: [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-          } as any,
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } } as any,
           { type: 'text', text: buildPrompt(keyword, tone, null) },
         ],
       }]
