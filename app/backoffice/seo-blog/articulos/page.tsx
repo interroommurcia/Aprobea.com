@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type ArticleSection = { h2: string; content: string; highlight: string | null }
+type ArticleSection = { h2: string; content: string; highlight: string | null; imagePrompt?: string; image?: string }
 type FAQ = { question: string; answer: string }
 
 type Article = {
@@ -17,9 +17,10 @@ type Article = {
   faq: FAQ[]
   heroImage?: string
   heroImageThumb?: string
-  heroImageCredit?: string
-  heroImageCreditUrl?: string
-  heroImageQuery: string
+  heroImageCredit?: string | null
+  heroImageCreditUrl?: string | null
+  heroImagePrompt?: string
+  heroImageSource?: 'gemini' | 'unsplash'
 }
 
 type SavedArticle = {
@@ -59,6 +60,7 @@ function generateHTML(article: Article): string {
   const sectionsHtml = article.sections.map(s => `
   <section>
     <h2>${s.h2}</h2>
+    ${s.image ? `<img class="section-img" src="${s.image}" alt="${s.h2}" loading="lazy" width="760" height="427">` : ''}
     ${s.highlight ? `<blockquote class="highlight"><p>${s.highlight}</p></blockquote>` : ''}
     ${s.content.split('\n\n').map(p => `<p>${p}</p>`).join('\n    ')}
   </section>`).join('\n')
@@ -89,6 +91,7 @@ function generateHTML(article: Article): string {
     h3{font-size:1.1rem;font-weight:600;margin:1.5rem 0 0.5rem;color:#0d0d0d}
     p{margin-bottom:1rem;font-size:17px}
     .hero-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin:1.5rem 0;display:block}
+    .section-img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;margin:1rem 0 1.25rem;display:block}
     .meta-desc{font-size:1.05rem;color:#555;margin-bottom:1.5rem;line-height:1.6}
     .highlight{background:#fff8e6;border-left:4px solid #C9A043;padding:1rem 1.25rem;border-radius:0 8px 8px 0;margin:1.5rem 0;font-style:italic;color:#333}
     .cta-box{background:#0d0d0d;color:#fff;padding:2rem;border-radius:12px;text-align:center;margin:3rem 0}
@@ -107,7 +110,7 @@ function generateHTML(article: Article): string {
   <article>
     <h1>${article.h1}</h1>
     <p class="meta-desc">${article.intro}</p>
-    ${article.heroImage ? `<img class="hero-img" src="${article.heroImage}" alt="${article.h1}" loading="lazy" width="760" height="427">
+    ${article.heroImage ? `<img class="hero-img" src="${article.heroImage}" alt="${article.h1}" loading="eager" width="760" height="427">
     ${article.heroImageCredit ? `<p class="credit">Foto: <a href="${article.heroImageCreditUrl}" target="_blank" rel="noopener">${article.heroImageCredit}</a> · Unsplash</p>` : ''}` : ''}
     ${sectionsHtml}
     <div class="cta-box">
@@ -218,9 +221,9 @@ export default function ArticulosPage() {
         faq: article.faq,
         hero_image: article.heroImage,
         hero_image_thumb: article.heroImageThumb,
-        hero_image_credit: article.heroImageCredit,
-        hero_image_credit_url: article.heroImageCreditUrl,
-        hero_image_query: article.heroImageQuery,
+        hero_image_credit: article.heroImageCredit ?? null,
+        hero_image_credit_url: article.heroImageCreditUrl ?? null,
+        hero_image_source: article.heroImageSource ?? null,
         keyword,
       }),
     })

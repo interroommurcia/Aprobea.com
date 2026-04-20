@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
-type Section = { h2: string; content: string; highlight: string | null }
+type Section = { h2: string; content: string; highlight: string | null; image?: string }
 type FAQ = { question: string; answer: string }
 
 type Articulo = {
@@ -154,6 +154,15 @@ export default async function ArticuloPage({ params }: { params: Promise<{ slug:
             }}>
               {section.h2}
             </h2>
+
+            {section.image && (
+              <img
+                src={section.image}
+                alt={section.h2}
+                loading="lazy"
+                style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover', borderRadius: '10px', display: 'block', marginBottom: '1.25rem' }}
+              />
+            )}
 
             {section.highlight && (
               <blockquote style={{
