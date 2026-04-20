@@ -173,7 +173,7 @@ export default function ArticulosPage() {
     setExpandedStats(slug)
     if (statsData[slug]) return
     const res = await fetch(`/api/backoffice/articulos/stats?slug=${slug}`, { credentials: 'include' })
-    if (res.ok) setStatsData(prev => ({ ...prev, [slug]: await res.json() }))
+    if (res.ok) { const d = await res.json(); setStatsData(prev => ({ ...prev, [slug]: d })) }
   }
 
   const loadList = useCallback(async () => {
@@ -519,7 +519,8 @@ export default function ArticulosPage() {
           const publicados = savedArticles.filter(a => a.estado === 'publicado')
 
           const ArticleCard = ({ art }: { art: SavedArticle }) => (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', background: 'var(--bg-1)', borderRadius: 'var(--radius)', border: '0.5px solid var(--gold-border)', transition: 'border-color 0.2s' }}>
+            <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', background: 'var(--bg-1)', borderRadius: expandedStats === art.slug ? 'var(--radius) var(--radius) 0 0' : 'var(--radius)', border: '0.5px solid var(--gold-border)', transition: 'border-color 0.2s' }}>
               {art.hero_image_thumb
                 ? <img src={art.hero_image_thumb} alt={art.h1} style={{ width: '64px', height: '36px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
                 : <div style={{ width: '64px', height: '36px', borderRadius: '6px', background: 'var(--bg-2)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', opacity: 0.4 }}>✍️</div>
@@ -604,6 +605,7 @@ export default function ArticulosPage() {
                 )}
               </div>
             )}
+            </>
           )
 
           return (
