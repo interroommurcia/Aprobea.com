@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
@@ -35,6 +36,7 @@ async function getArticulos(): Promise<ArticuloResumen[]> {
 }
 
 export default async function BlogPage() {
+  notFound()
   const articulos = await getArticulos()
 
   return (
