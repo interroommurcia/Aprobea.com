@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 export default function LoginPage() {
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
+  const [showPwd, setShowPwd]   = useState(false)
   const [error, setError]       = useState('')
   const [loading, setLoading]   = useState(false)
   const router = useRouter()
@@ -42,7 +43,12 @@ export default function LoginPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Contraseña</label>
-            <input type="password" className="form-input" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+            <div style={{ position: 'relative' }}>
+              <input type={showPwd ? 'text' : 'password'} className="form-input" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={{ paddingRight: '2.5rem', width: '100%', boxSizing: 'border-box' }} />
+              <button type="button" onClick={() => setShowPwd(s => !s)} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontSize: '1rem', lineHeight: 1 }} tabIndex={-1} aria-label={showPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                {showPwd ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
           {error && <p style={{ color: '#e05', fontSize: '0.82rem', marginBottom: '1rem' }}>{error}</p>}
           <button type="submit" className="form-submit" disabled={loading} style={{ marginTop: '0.5rem' }}>
