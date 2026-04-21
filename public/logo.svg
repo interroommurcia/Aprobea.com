@@ -1,0 +1,19 @@
+<svg width="100%" viewBox="0 0 680 320" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Logo Aprobea</title>
+  <desc>Logo Aprobea con icono check verde y wordmark</desc>
+
+  <!-- Icono: cuadrado redondeado verde -->
+  <rect x="196" y="82" width="90" height="90" rx="20" fill="#1D9E75"/>
+  <!-- Check -->
+  <polyline points="213,129 232,150 273,108" fill="none" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Wordmark -->
+  <text x="304" y="152" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="72" font-weight="500" fill="#1a1a1a" letter-spacing="-1">Apro<tspan fill="#1D9E75">bea</tspan></text>
+
+  <!-- Tagline -->
+  <text x="340" y="196" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="400" fill="#888" letter-spacing="3.5">OPOSICIONES LOCALES Y REGIONALES</text>
+
+  <!-- Línea separadora -->
+  <line x1="196" y1="212" x2="484" y2="212" stroke="#1D9E75" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
+
+</svg>

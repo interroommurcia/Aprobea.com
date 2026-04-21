@@ -17,18 +17,18 @@ export const metadata: Metadata = {
       'Tests nacionales y regionales generados con IA. BOE Radar en tiempo real, exámenes adaptativos IRT y tutor personalizado. 20 preguntas gratis al día.',
     type: 'website',
     url: 'https://aprobea.com',
-    images: [{ url: 'https://aprobea.com/logo.png', width: 680, height: 320, alt: 'Logo Aprobea' }],
+    images: [{ url: 'https://aprobea.com/logo.svg', width: 680, height: 320, alt: 'Logo Aprobea' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Aprobea — IA para oposiciones nacionales y regionales',
     description: 'Tests adaptativos, BOE Radar y tutor IA. Empieza gratis.',
-    images: ['https://aprobea.com/logo.png'],
+    images: ['https://aprobea.com/logo.svg'],
   },
   icons: {
-    icon: '/logo.png',
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/logo.png', type: 'image/png' }],
     apple: '/logo.png',
-    shortcut: '/logo.png',
+    shortcut: '/favicon.svg',
   },
   alternates: {
     canonical: 'https://aprobea.com',
