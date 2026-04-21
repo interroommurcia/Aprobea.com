@@ -20,19 +20,17 @@ const outfit = Outfit({
 })
 
 export const metadata: Metadata = {
-  title: "GrupoSkyLine — Capital. Estrategia. Futuro.",
+  title: "Aprobea — Plataforma IA para oposiciones en España",
   description:
-    "Compra de Créditos Hipotecarios y Activos Inmobiliarios",
+    "Tests nacionales y regionales, BOE Radar 24/7 y tutor IA personalizado. Prepara tus oposiciones con inteligencia artificial.",
   icons: {
-    icon: [
-      { url: "/logo.png", type: "image/png" },
-    ],
+    icon: [{ url: "/logo.png", type: "image/png" }],
     apple: "/logo.png",
     shortcut: "/logo.png",
   },
   openGraph: {
-    title: "GrupoSkyLine — Capital. Estrategia. Futuro.",
-    description: "Compra de Créditos Hipotecarios y Activos Inmobiliarios",
+    title: "Aprobea — Plataforma IA para oposiciones en España",
+    description: "Tests nacionales y regionales, BOE Radar 24/7 y tutor IA personalizado.",
     images: [{ url: "/logo.png" }],
     type: "website",
   },
