@@ -233,9 +233,9 @@ export default function HomeClient() {
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 999,
           height: 64, display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', padding: '0 5vw',
-          background: scrolled ? 'rgba(4,9,6,0.96)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          borderBottom: scrolled ? `1px solid ${C.greenBorder}` : '1px solid transparent',
+          background: scrolled ? 'rgba(2,6,3,0.98)' : 'rgba(2,5,3,0.88)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: `1px solid ${scrolled ? C.greenBorder : 'rgba(29,158,117,0.1)'}`,
           transition: 'background 0.35s ease, border-color 0.35s ease',
         }}
       >
