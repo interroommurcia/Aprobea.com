@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 
 const PROTECTED = ['/dashboard', '/backoffice']
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const res = NextResponse.next()
 
   const supabase = createServerClient(
@@ -20,12 +20,10 @@ export async function middleware(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = req.nextUrl.pathname
 
-  // Rutas protegidas → redirigir al login
   if (PROTECTED.some(p => path.startsWith(p)) && !user) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Backoffice solo para admins (perfil con plan='academia' o email en whitelist)
   if (path.startsWith('/backoffice') && user) {
     const { data: profile } = await supabase
       .from('profiles')
