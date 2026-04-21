@@ -7,13 +7,13 @@ export default function CtaSection() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section ref={ref} className="py-32 px-6" style={{ background: "var(--bg2)" }}>
+    <section ref={ref} className="py-16 md:py-32 px-6" style={{ background: "var(--bg2)" }}>
       <div className="max-w-3xl mx-auto text-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={inView ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 0.7 }}
-          className="relative rounded-3xl p-12 overflow-hidden"
+          className="relative rounded-3xl p-6 sm:p-12 overflow-hidden"
           style={{ background: "var(--bg3)", border: "1px solid rgba(29,158,117,0.2)" }}
         >
           <div
@@ -34,7 +34,7 @@ export default function CtaSection() {
               <input
                 type="email"
                 placeholder="tu@email.com"
-                className="w-64 px-5 py-3.5 rounded-xl text-sm outline-none"
+                className="w-full sm:w-64 px-5 py-3.5 rounded-xl text-sm outline-none"
                 style={{
                   background: "rgba(255,255,255,0.07)",
                   border: "1px solid rgba(255,255,255,0.12)",
@@ -42,7 +42,7 @@ export default function CtaSection() {
                 }}
               />
               <button
-                className="glow-btn px-7 py-3.5 rounded-xl text-sm font-semibold text-black"
+                className="glow-btn w-full sm:w-auto px-7 py-3.5 rounded-xl text-sm font-semibold text-black"
                 style={{ background: "var(--green)" }}
               >
                 Empezar gratis →

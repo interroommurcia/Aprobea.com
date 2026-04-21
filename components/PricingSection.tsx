@@ -55,7 +55,7 @@ export default function PricingSection() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="precios" ref={ref} className="py-32 px-6">
+    <section id="precios" ref={ref} className="py-16 md:py-32 px-6">
       <div className="max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -69,7 +69,7 @@ export default function PricingSection() {
           <h2 className="text-4xl md:text-5xl font-bold">Simple y sin sorpresas</h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-6 items-center">
+        <div className="grid md:grid-cols-3 gap-6 md:items-center">
           {PLANS.map((p, i) => (
             <motion.div
               key={p.name}
@@ -80,7 +80,7 @@ export default function PricingSection() {
               style={{
                 background: p.highlight ? "var(--green)" : "rgba(255,255,255,0.04)",
                 border: p.highlight ? "none" : "1px solid var(--border)",
-                transform: p.highlight ? "scale(1.04)" : "scale(1)",
+                transform: p.highlight ? "scale(1)" : "scale(1)",
                 boxShadow: p.highlight ? "0 0 60px rgba(29,158,117,0.3)" : "none",
               }}
             >

@@ -61,7 +61,7 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.1 }}
-          className="text-5xl md:text-7xl font-bold leading-[1.08] tracking-tight max-w-4xl"
+          className="text-4xl sm:text-5xl md:text-7xl font-bold leading-[1.08] tracking-tight max-w-4xl"
         >
           Las oposiciones{" "}
           <span
@@ -90,13 +90,13 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.35 }}
-          className="mt-10 flex flex-col sm:flex-row items-center gap-4"
+          className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full max-w-sm sm:max-w-none"
         >
           <div className="relative">
             <input
               type="email"
               placeholder="tu@email.com"
-              className="w-72 px-5 py-3.5 rounded-xl text-sm outline-none"
+              className="w-full sm:w-72 px-5 py-3.5 rounded-xl text-sm outline-none"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.12)",
@@ -105,7 +105,7 @@ export default function HeroSection() {
             />
           </div>
           <button
-            className="glow-btn px-7 py-3.5 rounded-xl text-sm font-semibold text-black whitespace-nowrap"
+            className="glow-btn w-full sm:w-auto px-7 py-3.5 rounded-xl text-sm font-semibold text-black whitespace-nowrap"
             style={{ background: "var(--green)" }}
           >
             Recibir alertas gratis →

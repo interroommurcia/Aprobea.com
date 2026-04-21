@@ -34,13 +34,13 @@ export default function HowItWorks() {
   const inView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section id="como-funciona" ref={ref} className="py-32 px-6">
+    <section id="como-funciona" ref={ref} className="py-16 md:py-32 px-6">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-20"
+          className="text-center mb-10 md:mb-20"
         >
           <div className="text-xs font-semibold tracking-[0.2em] uppercase mb-4" style={{ color: "var(--green)" }}>
             Cómo funciona

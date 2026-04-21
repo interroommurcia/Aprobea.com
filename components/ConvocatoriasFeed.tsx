@@ -58,7 +58,7 @@ export default function ConvocatoriasFeed() {
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   return (
-    <section id="convocatorias" ref={ref} className="py-24 px-6" style={{ background: "var(--bg2)" }}>
+    <section id="convocatorias" ref={ref} className="py-16 md:py-24 px-6" style={{ background: "var(--bg2)" }}>
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
