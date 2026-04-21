@@ -19,6 +19,7 @@ export default async function BackofficeLayout({ children }: { children: React.R
           {[
             { href: "/backoffice", label: "📊 Resumen" },
             { href: "/backoffice/temas", label: "📚 Temas" },
+            { href: "/backoffice/boe", label: "📡 Monitor BOE" },
             { href: "/backoffice/convocatorias", label: "📋 Convocatorias" },
             { href: "/backoffice/usuarios", label: "👥 Usuarios" },
             { href: "/backoffice/tickets", label: "🎫 Tickets" },
