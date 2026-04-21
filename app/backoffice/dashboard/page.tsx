@@ -1,42 +1,52 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
-type Cliente = { id: string; nombre: string; apellidos: string; estado: string; participaciones?: { importe: number; estado: string }[] }
-type Movimiento = { importe: number; tipo: string }
+type Stats = {
+  usuarios_total: number
+  usuarios_pro: number
+  oposiciones: number
+  preguntas: number
+  examenes_hoy: number
+  ia_coste_mes: number
+  boe_pendientes: number
+  nuevos_7d: number[]
+}
+
+function Kpi({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+  return (
+    <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.75rem 2rem' }}>
+      <div className="serif" style={{ fontSize: '2rem', fontWeight: 300, color: color ?? 'var(--gold-100)' }}>{value}</div>
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: '4px' }}>{label}</div>
+      {sub && <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px' }}>{sub}</div>}
+    </div>
+  )
+}
 
 export default function BackofficeDashboard() {
-  const [clientes, setClientes] = useState<Cliente[]>([])
-  const [participaciones, setParticipaciones] = useState<{ importe: number; rentabilidad_acum: number; estado: string }[]>([])
-  const [contabilidad, setContabilidad] = useState<{ tipo: string; importe: number }[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [boeRecientes, setBoeRecientes] = useState<any[]>([])
+  const [topOpos, setTopOpos] = useState<any[]>([])
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/backoffice/clientes').then(r => r.json()),
-      fetch('/api/backoffice/participaciones').then(r => r.json()),
-      fetch('/api/backoffice/contabilidad').then(r => r.json()),
-    ]).then(([c, p, cont]) => {
-      setClientes(Array.isArray(c) ? c : [])
-      setParticipaciones(Array.isArray(p) ? p : [])
-      setContabilidad(Array.isArray(cont) ? cont : [])
+      fetch('/api/backoffice/stats').then(r => r.ok ? r.json() : null),
+      fetch('/api/backoffice/boe?limit=5').then(r => r.ok ? r.json() : []),
+      fetch('/api/backoffice/oposiciones?top=5').then(r => r.ok ? r.json() : []),
+    ]).then(([s, boe, ops]) => {
+      setStats(s)
+      setBoeRecientes(Array.isArray(boe?.items) ? boe.items : [])
+      setTopOpos(Array.isArray(ops) ? ops : [])
       setLoading(false)
     })
   }, [])
 
-  const totalInvertido = participaciones.filter(p => p.estado !== 'cancelada').reduce((s, p) => s + (p.importe || 0), 0)
-  const totalRentabilidad = participaciones.reduce((s, p) => s + (p.rentabilidad_acum || 0), 0)
-  const ingresos = contabilidad.filter(c => c.tipo === 'ingreso').reduce((s, c) => s + c.importe, 0)
-  const gastos = contabilidad.filter(c => c.tipo === 'gasto').reduce((s, c) => s + c.importe, 0)
-
-  const stats = [
-    { label: 'Clientes totales', value: clientes.length, suffix: '' },
-    { label: 'Clientes activos', value: clientes.filter(c => c.estado === 'activo').length, suffix: '' },
-    { label: 'Capital gestionado', value: `${(totalInvertido / 1000).toFixed(0)}K`, suffix: '€' },
-    { label: 'Rentabilidad generada', value: `${(totalRentabilidad / 1000).toFixed(1)}K`, suffix: '€' },
-    { label: 'Ingresos empresa', value: `${(ingresos / 1000).toFixed(1)}K`, suffix: '€' },
-    { label: 'Balance empresa', value: `${((ingresos - gastos) / 1000).toFixed(1)}K`, suffix: '€' },
-  ]
+  const chartData = stats?.nuevos_7d?.map((v, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i))
+    return { dia: d.toLocaleDateString('es-ES', { weekday: 'short' }), usuarios: v }
+  }) ?? []
 
   return (
     <div style={{ padding: '2.5rem 3rem' }}>
@@ -51,57 +61,105 @@ export default function BackofficeDashboard() {
         <p style={{ color: 'var(--text-2)' }}>Cargando datos…</p>
       ) : (
         <>
-          {/* Stats grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '3rem' }}>
-            {stats.map(s => (
-              <div key={s.label} style={{
-                background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)',
-                borderRadius: 'var(--radius-lg)', padding: '1.75rem 2rem',
-              }}>
-                <div className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--gold-100)' }}>
-                  {s.value}{s.suffix}
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', marginTop: '4px', letterSpacing: '0.05em' }}>{s.label}</div>
-              </div>
-            ))}
+          {/* KPIs */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+            <Kpi label="Usuarios totales"   value={stats?.usuarios_total ?? 0} />
+            <Kpi label="Usuarios Pro/Elite" value={stats?.usuarios_pro ?? 0}   color="var(--gold-100)" />
+            <Kpi label="Exámenes hoy"       value={stats?.examenes_hoy ?? 0}   color="#4db87a" />
+            <Kpi label="Coste IA este mes"  value={`${(stats?.ia_coste_mes ?? 0).toFixed(2)}€`} sub="Claude API" color="#4d9fd4" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '3rem' }}>
+            <Kpi label="Oposiciones activas"   value={stats?.oposiciones ?? 0} />
+            <Kpi label="Preguntas en banco"    value={(stats?.preguntas ?? 0).toLocaleString('es-ES')} />
+            <Kpi label="BOE sin procesar"      value={stats?.boe_pendientes ?? 0} color={stats?.boe_pendientes ? '#e07a4d' : 'var(--gold-100)'} />
+            <Kpi label="Nuevos usuarios 7 días" value={stats?.nuevos_7d?.reduce((a, b) => a + b, 0) ?? 0} color="#4db87a" />
           </div>
 
-          {/* Recent clients */}
-          <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-            <div style={{ padding: '1.5rem 2rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-0)' }}>Últimos clientes</span>
-              <a href="/backoffice/clientes" style={{ fontSize: '11px', color: 'var(--gold-200)', letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none' }}>Ver todos →</a>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+
+            {/* Gráfico nuevos usuarios */}
+            <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
+              <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '1.25rem' }}>
+                Nuevos usuarios · últimos 7 días
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="gradU" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#C9A043" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#C9A043" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="dia" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.3)' }} axisLine={false} tickLine={false} width={24} />
+                  <Tooltip contentStyle={{ background: '#1a1610', border: '0.5px solid rgba(201,160,67,0.3)', borderRadius: '8px', fontSize: '12px' }} />
+                  <Area type="monotone" dataKey="usuarios" stroke="#C9A043" strokeWidth={1.5} fill="url(#gradU)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '0.5px solid var(--gold-border)' }}>
-                  {['Nombre', 'Estado', 'Participaciones'].map(h => (
-                    <th key={h} style={{ padding: '0.75rem 2rem', textAlign: 'left', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {clientes.slice(0, 8).map(c => (
-                  <tr key={c.id} style={{ borderBottom: '0.5px solid rgba(62,59,53,0.4)' }}>
-                    <td style={{ padding: '0.9rem 2rem', fontSize: '0.85rem', color: 'var(--text-0)' }}>{c.nombre} {c.apellidos}</td>
-                    <td style={{ padding: '0.9rem 2rem' }}>
-                      <span style={{
-                        padding: '3px 8px', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase',
-                        borderRadius: 'var(--radius)',
-                        background: c.estado === 'activo' ? 'rgba(100,200,100,0.1)' : c.estado === 'lead' ? 'rgba(201,160,67,0.1)' : 'rgba(255,255,255,0.05)',
-                        color: c.estado === 'activo' ? '#6dc86d' : c.estado === 'lead' ? 'var(--gold-200)' : 'var(--text-3)',
-                        border: `0.5px solid ${c.estado === 'activo' ? 'rgba(100,200,100,0.3)' : c.estado === 'lead' ? 'var(--gold-border)' : 'var(--text-3)'}`,
-                      }}>
-                        {c.estado}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.9rem 2rem', fontSize: '0.82rem', color: 'var(--text-2)' }}>
-                      {c.participaciones?.length ?? 0}
-                    </td>
-                  </tr>
+
+            {/* Top oposiciones */}
+            <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+              <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)' }}>Top oposiciones</span>
+                <a href="/backoffice/oposiciones" style={{ fontSize: '10px', color: 'var(--gold-200)', textDecoration: 'none' }}>Ver todas →</a>
+              </div>
+              <div style={{ padding: '0.5rem 0' }}>
+                {topOpos.length === 0 ? (
+                  <p style={{ padding: '1rem 1.5rem', color: 'var(--text-3)', fontSize: '0.82rem' }}>Sin datos aún</p>
+                ) : topOpos.map((op: any, i: number) => (
+                  <div key={op.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.7rem 1.5rem' }}>
+                    <div className="serif" style={{ fontSize: '1.2rem', fontWeight: 300, color: 'var(--text-3)', width: '20px' }}>{i + 1}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-0)', fontWeight: 500 }}>{op.nombre_corto ?? op.nombre}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>{op.suscriptores_count ?? 0} suscriptores</div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+          </div>
+
+          {/* BOE recientes */}
+          <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)' }}>📡 BOE · Últimas publicaciones</span>
+              <a href="/backoffice/boe" style={{ fontSize: '10px', color: 'var(--gold-200)', textDecoration: 'none' }}>Ver radar →</a>
+            </div>
+            {boeRecientes.length === 0 ? (
+              <p style={{ padding: '1.5rem', color: 'var(--text-3)', fontSize: '0.82rem' }}>Sin publicaciones recientes.</p>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '0.5px solid var(--gold-border)' }}>
+                    {['Título', 'Tipo', 'Fuente', 'Fecha', 'Estado'].map(h => (
+                      <th key={h} style={{ padding: '0.65rem 1.5rem', textAlign: 'left', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-3)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {boeRecientes.map((item: any) => (
+                    <tr key={item.id} style={{ borderBottom: '0.5px solid rgba(62,59,53,0.3)' }}>
+                      <td style={{ padding: '0.8rem 1.5rem', fontSize: '0.82rem', color: 'var(--text-0)', maxWidth: '340px' }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.titulo}</div>
+                      </td>
+                      <td style={{ padding: '0.8rem 1.5rem' }}>
+                        <span style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '6px', background: 'rgba(201,160,67,0.1)', color: 'var(--gold-200)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{item.tipo}</span>
+                      </td>
+                      <td style={{ padding: '0.8rem 1.5rem', fontSize: '0.8rem', color: 'var(--text-2)' }}>{item.boe_fuente?.toUpperCase()}</td>
+                      <td style={{ padding: '0.8rem 1.5rem', fontSize: '0.8rem', color: 'var(--text-2)' }}>
+                        {item.fecha_publicacion ? new Date(item.fecha_publicacion).toLocaleDateString('es-ES') : '—'}
+                      </td>
+                      <td style={{ padding: '0.8rem 1.5rem' }}>
+                        <span style={{ fontSize: '9px', padding: '2px 8px', borderRadius: '6px', background: item.procesado ? 'rgba(77,184,122,0.1)' : 'rgba(224,122,77,0.1)', color: item.procesado ? '#4db87a' : '#e07a4d' }}>
+                          {item.procesado ? 'Procesado' : 'Pendiente'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </>
       )}

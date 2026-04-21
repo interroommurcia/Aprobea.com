@@ -1,1657 +1,220 @@
 'use client'
 
-import React, { useEffect, useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { useTheme } from '@/components/ThemeProvider'
-import { t } from '@/lib/i18n'
-import { downloadCSV, downloadExcel } from '@/lib/export'
-import TicketProgress from '@/components/TicketProgress'
-import MarketplaceCard from '@/components/MarketplaceCard'
-import AssetDetailModal from '@/components/AssetDetailModal'
-import Calendario, { EventoCalendario } from '@/components/Calendario'
-import SkylerWidget from '@/components/SkylerWidget'
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from 'recharts'
 
-type Movimiento = { id: string; tipo: string; importe: number; fecha: string; descripcion: string }
-type Participacion = {
-  id: string; nombre_operacion: string; tipo: string; importe: number
-  fecha_entrada: string; fecha_vencimiento: string; rentabilidad_anual: number
-  rentabilidad_acum: number; estado: string; movimientos?: Movimiento[]
-}
-type Cliente = { id: string; nombre: string; apellidos: string; email: string; tipo_inversor: string; capital_inicial: number; estado: string }
-type Notificacion = { id: string; titulo: string; mensaje: string; leida: boolean; created_at: string; tipo: string }
-type Operacion = { id: string; titulo: string; descripcion: string; tipo: string; pdf_url: string | null; created_at: string; tickets_total: number; tickets_vendidos: number; importe_objetivo: number | null; tickets_por_participante: number }
-type RentEntry = { id: string; titulo: string; descripcion: string; video_url: string | null; ubicacion: string | null; rentabilidad: string | null; precio_alquiler: number | null; precio_subarrendamiento: number | null; created_at: string }
-type CodigoReferido = { id: string; codigo: string; comision_pct: number; usos: number; max_usos: number | null; activo: boolean }
-type Referido = { id: string; created_at: string; comision_pct: number; comision_importe: number; comision_pagada: boolean; referred: { nombre: string; apellidos: string; email: string; created_at: string } | null }
-type Conversacion = { id: string; operacion_nombre: string | null; referencia_catastral: string | null; tipo: string; ultimo_mensaje: string | null; ultimo_mensaje_at: string | null; no_leidos_cliente: number }
-type MensajeChat = { id: string; created_at: string; remitente: 'admin' | 'cliente'; contenido: string | null; archivo_url: string | null; archivo_nombre: string | null; archivo_tipo: string | null; leido: boolean; requiere_firma: boolean; es_broadcast: boolean; nota_interna?: boolean }
-
-// Tabs are computed from translations below
-const TIPO_COLORS: Record<string, string> = { npl: '#b87333', crowdfunding: '#C9A043' }
-const ESTADO_DOT: Record<string, string> = { activa: '#6dc86d', finalizada: '#888', pendiente: '#C9A043', cancelada: '#e05' }
-
-function getEmbedUrl(url: string): string | null {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`
-  const vm = url.match(/vimeo\.com\/(\d+)/)
-  if (vm) return `https://player.vimeo.com/video/${vm[1]}`
-  return null
+type Perfil  = { nombre: string; plan: string; xp_total: number; racha_dias: number; ultima_actividad: string }
+type Resumen = {
+  examenes_total: number; correctas_total: number; total_preguntas: number
+  temas_dominados: number; temas_en_progreso: number; temas_sin_iniciar: number
+  examen_reciente: { puntuacion: number; tipo: string; created_at: string; oposicion?: string } | null
+  temas_debiles: { titulo: string; porcentaje_acierto: number; tema_id: string }[]
+  temas_fuertes: { titulo: string; porcentaje_acierto: number; tema_id: string }[]
+  proximas_revisiones: { titulo: string; fecha: string }[]
+  oposicion_activa: { id: string; nombre: string; nombre_corto: string } | null
 }
 
-function buildChartData(parts: Participacion[], months: string[]) {
-  const allMovs = parts.flatMap(p => p.movimientos || [])
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - (5 - i))
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    const label = months[d.getMonth()]
-    const bruta = allMovs
-      .filter(m => m.fecha?.startsWith(key) && ['interes', 'dividendo'].includes(m.tipo))
-      .reduce((s, m) => s + m.importe, 0)
-    return { mes: label, rentabilidad: Math.round(bruta) }
-  })
-}
-
-// Custom tooltip for chart
-function ChartTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
+function XpBar({ xp }: { xp: number }) {
+  const nivel  = Math.floor(xp / 500) + 1
+  const progreso = ((xp % 500) / 500) * 100
   return (
-    <div style={{ background: '#1a1610', border: '0.5px solid rgba(201,160,67,0.3)', borderRadius: '8px', padding: '10px 16px' }}>
-      <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{label}</div>
-      <div style={{ fontSize: '1.1rem', color: '#C9A043', fontWeight: 600 }}>{payload[0].value.toLocaleString('es-ES')}€</div>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>Nivel {nivel}</span>
+        <span style={{ fontSize: '10px', color: 'var(--gold-200)' }}>{xp} XP</span>
+      </div>
+      <div style={{ height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px' }}>
+        <div style={{ height: '100%', width: `${progreso}%`, background: 'linear-gradient(90deg,var(--gold-300),var(--gold-100))', borderRadius: '2px', transition: 'width 0.5s ease' }} />
+      </div>
     </div>
   )
 }
 
-// Property icon placeholder
-function PropertyIcon({ tipo }: { tipo: string }) {
-  return (
-    <div style={{ width: '52px', height: '52px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid rgba(201,160,67,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={TIPO_COLORS[tipo] ?? '#C9A043'} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-        <polyline points="9,22 9,12 15,12 15,22"/>
-      </svg>
-    </div>
-  )
-}
-
-export default function DashboardPage() {
-  const { lang } = useTheme()
-  const i18n = t(lang)
-  const TABS = [i18n.dashboard, i18n.myInvestments, i18n.marketplace, i18n.transactions, i18n.messages, i18n.referrals, 'Calendario', 'Asistente IA', i18n.profile]
-  const [tab, setTab] = useState(i18n.dashboard)
-  const [eventos, setEventos] = useState<EventoCalendario[]>([])
-  const [chatToken2, setChatToken2] = useState('')
-  const [detailOp, setDetailOp] = useState<any>(null)
-  const [cliente, setCliente] = useState<Cliente | null>(null)
-  const [parts, setParts] = useState<Participacion[]>([])
-  const [notifs, setNotifs] = useState<Notificacion[]>([])
-  const [ops, setOps] = useState<Operacion[]>([])
-  const [rentEntries, setRentEntries] = useState<RentEntry[]>([])
-  const [codigoRef, setCodigoRef] = useState<CodigoReferido | null>(null)
-  const [referidos, setReferidos] = useState<Referido[]>([])
-  const [showNotifs, setShowNotifs] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
-  const [showCalWidget, setShowCalWidget] = useState(false)
-  // Chat IA
-  type IaMsg = { role: 'user' | 'assistant'; content: string; modo?: 'gratuito'; cita?: { tipo: string; fecha?: string; hora?: string } }
-  type CitaSolicitud = { id: string; tipo: string; estado: string; fecha_propuesta: string | null; hora_propuesta: string | null; fecha_confirmada: string | null; hora_confirmada: string | null; mensaje: string; nota_admin: string | null; created_at: string }
-  type IaConv = { id: string; titulo: string; created_at: string; updated_at: string; mensajes: IaMsg[] }
-  const [iaConvs, setIaConvs] = useState<IaConv[]>([])
-  const [iaConvActiva, setIaConvActiva] = useState<IaConv | null>(null)
-  const [iaMsgs, setIaMsgs] = useState<IaMsg[]>([])
-  const [iaInput, setIaInput] = useState('')
-  const [iaLoading, setIaLoading] = useState(false)
-  const [iaStream, setIaStream] = useState('')
-  const [iaUso, setIaUso] = useState<{ gasto: number; limite: number; periodo: string; modoGratuito: boolean } | null>(null)
-  const [misCitas, setMisCitas] = useState<CitaSolicitud[]>([])
-  const iaChatEndRef = useRef<HTMLDivElement>(null)
-  const [expandedPart, setExpandedPart] = useState<string | null>(null)
+export default function Dashboard() {
+  const [perfil, setPerfil]   = useState<Perfil | null>(null)
+  const [resumen, setResumen] = useState<Resumen | null>(null)
   const [loading, setLoading] = useState(true)
-  // Chat state
-  const [convs, setConvs] = useState<Conversacion[]>([])
-  const [selectedConv, setSelectedConv] = useState<Conversacion | null>(null)
-  const [chatMsgs, setChatMsgs] = useState<MensajeChat[]>([])
-  const [chatTexto, setChatTexto] = useState('')
-  const [chatArchivo, setChatArchivo] = useState<File | null>(null)
-  const [chatEnviando, setChatEnviando] = useState(false)
-  const [chatToken, setChatToken] = useState('')
-  const [renovando, setRenovando] = useState(false)
-  const [pagoConfirmado, setPagoConfirmado] = useState<{ op: string } | null>(null)
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const chatFileRef = useRef<HTMLInputElement>(null)
-  const bellRef = useRef<HTMLDivElement>(null)
-  const profileRef = useRef<HTMLDivElement>(null)
-  const calWidgetRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
 
-  // Detectar ?pago=ok al volver de Stripe Checkout
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('pago') === 'ok') {
-      setPagoConfirmado({ op: params.get('op') ?? '' })
-      // Limpiar URL sin recargar
-      window.history.replaceState({}, '', '/dashboard')
-    }
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return
+      const uid = data.user.id
+
+      const [{ data: p }, { data: res }] = await Promise.all([
+        supabase.from('perfiles').select('nombre,plan,xp_total,racha_dias,ultima_actividad').eq('id', uid).single(),
+        fetch(`/api/dashboard/resumen?user_id=${uid}`).then(r => r.ok ? r.json() : null),
+      ])
+      setPerfil(p)
+      setResumen(res)
+      setLoading(false)
+    })
   }, [])
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) { router.push('/login'); return }
-      supabase.from('clientes').select('*').eq('user_id', user.id).single().then(({ data: c }) => {
-        if (!c) { setLoading(false); return }
-        setCliente(c)
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          const token = session?.access_token || ''
-          Promise.all([
-            supabase.from('participaciones').select('*, movimientos(*)').eq('cliente_id', c.id),
-            supabase.from('notificaciones').select('*').eq('cliente_id', c.id).order('created_at', { ascending: false }),
-            fetch('/api/operaciones').then(r => r.json()),
-            fetch('/api/rent-to-rent').then(r => r.json()),
-            fetch('/api/referidos', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
-          ]).then(([{ data: ps }, { data: ns }, opData, rentData, refData]) => {
-            setParts(Array.isArray(ps) ? ps : [])
-            setNotifs(Array.isArray(ns) ? ns : [])
-            setOps(Array.isArray(opData) ? opData : [])
-            setRentEntries(Array.isArray(rentData) ? rentData : [])
-            if (refData && !refData.error) {
-              setCodigoRef(refData.codigo || null)
-              setReferidos(Array.isArray(refData.referidos) ? refData.referidos : [])
-            }
-            setChatToken(token)
-            setChatToken2(token)
-            loadIaUso(token)
-            // Cargar conversaciones IA
-            fetch('/api/ia/conversaciones', { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.ok ? r.json() : [])
-              .then((convs: IaConv[]) => {
-                if (Array.isArray(convs) && convs.length > 0) {
-                  setIaConvs(convs)
-                  setIaConvActiva(convs[0])
-                  setIaMsgs(Array.isArray(convs[0].mensajes) ? convs[0].mensajes : [])
-                }
-              })
-            // Cargar citas del cliente
-            fetch('/api/citas', { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.ok ? r.json() : [])
-              .then(d => setMisCitas(Array.isArray(d) ? d : []))
-            // Load conversations
-            fetch('/api/chat', { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.ok ? r.json() : [])
-              .then(d => setConvs(Array.isArray(d) ? d : []))
-            // Load calendario + auto-eventos de vencimientos
-            fetch('/api/calendario', { headers: { Authorization: `Bearer ${token}` } })
-              .then(r => r.ok ? r.json() : [])
-              .then((evs: EventoCalendario[]) => {
-                // Añadir eventos automáticos de vencimientos desde participaciones
-                const autoEvs: EventoCalendario[] = (Array.isArray(ps) ? ps as any[] : [])
-                  .filter((p: any) => p.fecha_vencimiento)
-                  .map((p: any) => ({
-                    id: `auto-venc-${p.id}`,
-                    titulo: `Vencimiento: ${p.nombre_operacion}`,
-                    descripcion: `Importe: ${p.importe.toLocaleString('es-ES')}€ · Rentabilidad: ${p.rentabilidad_anual}%`,
-                    fecha: p.fecha_vencimiento.slice(0, 10),
-                    tipo: 'vencimiento' as const,
-                  }))
-                setEventos([...(Array.isArray(evs) ? evs : []), ...autoEvs])
-              })
-            setLoading(false)
-          })
-        })
-      })
-    })
-  }, [router])
-
-  // Load messages when a conversation is selected + realtime subscription
-  useEffect(() => {
-    if (!selectedConv || !chatToken) return
-    setChatMsgs([])
-    fetch(`/api/chat/mensajes?conversacion_id=${selectedConv.id}`, { headers: { Authorization: `Bearer ${chatToken}` } })
-      .then(r => r.ok ? r.json() : [])
-      .then(d => { setChatMsgs(Array.isArray(d) ? d : []) })
-
-    // Realtime: new messages in this conversation
-    const channel = supabase.channel(`chat-${selectedConv.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensajes', filter: `conversacion_id=eq.${selectedConv.id}` }, (payload) => {
-        const m = payload.new as MensajeChat
-        if (!m.nota_interna) setChatMsgs(prev => prev.some(x => x.id === m.id) ? prev : [...prev, m])
-      })
-      .subscribe()
-
-    return () => { supabase.removeChannel(channel) }
-  }, [selectedConv?.id, chatToken])
-
-  // Scroll to bottom on new messages
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMsgs])
-  useEffect(() => { iaChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [iaMsgs, iaStream])
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setShowNotifs(false)
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setShowProfile(false)
-      if (calWidgetRef.current && !calWidgetRef.current.contains(e.target as Node)) setShowCalWidget(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  async function markAllRead() {
-    const unread = notifs.filter(n => !n.leida).map(n => n.id)
-    if (!unread.length) return
-    await supabase.from('notificaciones').update({ leida: true }).in('id', unread)
-    setNotifs(prev => prev.map(n => ({ ...n, leida: true })))
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
-
-  async function loadIaUso(token: string) {
-    const r = await fetch('/api/ia/uso', { headers: { Authorization: `Bearer ${token}` } })
-    if (r.ok) setIaUso(await r.json())
-  }
-
-  // ── Helpers de conversaciones IA ────────────────────────────
-  async function iaGuardar(convId: string, msgs: IaMsg[]) {
-    if (!chatToken2 || !convId) return
-    await fetch('/api/ia/conversaciones', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
-      body: JSON.stringify({ id: convId, mensajes: msgs }),
-    })
-    setIaConvs(prev => prev.map(c => c.id === convId ? { ...c, mensajes: msgs, updated_at: new Date().toISOString(), titulo: msgs.find(m => m.role === 'user')?.content?.slice(0, 45) ?? c.titulo } : c))
-  }
-
-  async function iaNuevaConv() {
-    if (!chatToken2) return
-    const res = await fetch('/api/ia/conversaciones', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${chatToken2}` },
-    })
-    if (res.status === 409) { alert('Límite de 3 conversaciones alcanzado. Borra una para continuar.'); return }
-    const conv = await res.json()
-    setIaConvs(prev => [conv, ...prev])
-    setIaConvActiva(conv)
-    setIaMsgs([])
-  }
-
-  async function iaEliminarConv(id: string) {
-    if (!chatToken2) return
-    await fetch('/api/ia/conversaciones', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
-      body: JSON.stringify({ id }),
-    })
-    const nuevas = iaConvs.filter(c => c.id !== id)
-    setIaConvs(nuevas)
-    if (iaConvActiva?.id === id) {
-      setIaConvActiva(nuevas[0] ?? null)
-      setIaMsgs(nuevas[0]?.mensajes ?? [])
-    }
-  }
-
-  async function sendIa(text: string) {
-    if (!text.trim() || iaLoading) return
-
-    // Si no hay conversación activa, crear una
-    let convId = iaConvActiva?.id
-    if (!convId) {
-      if (iaConvs.length >= 3) { alert('Límite de 3 conversaciones. Borra una para continuar.'); return }
-      const res = await fetch('/api/ia/conversaciones', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${chatToken2}` },
-      })
-      if (!res.ok) { alert('No se pudo crear la conversación.'); return }
-      const conv = await res.json()
-      setIaConvs(prev => [conv, ...prev])
-      setIaConvActiva(conv)
-      convId = conv.id
-    }
-
-    const newMsgs: IaMsg[] = [...iaMsgs, { role: 'user', content: text }]
-    setIaMsgs(newMsgs)
-    setIaInput('')
-    setIaLoading(true)
-    setIaStream('')
-
-    const res = await fetch('/api/ia/chat-cliente', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
-      body: JSON.stringify({ messages: newMsgs.map(m => ({ role: m.role, content: m.content })) }),
-    })
-
-    const reader = res.body?.getReader()
-    const decoder = new TextDecoder()
-    let full = ''
-    let esGratuito = false
-    let citaCreada: { tipo: string; fecha?: string; hora?: string } | undefined
-
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        for (const line of decoder.decode(value).split('\n')) {
-          if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-            try {
-              const parsed = JSON.parse(line.slice(6))
-              if (parsed.error) { full = `⚠️ ${parsed.error}`; setIaStream(full) }
-              if (parsed.text) { full += parsed.text; setIaStream(s => s + parsed.text) }
-              if (parsed.modo === 'gratuito') esGratuito = true
-              if (parsed.cita_creada) citaCreada = { tipo: parsed.tipo, fecha: parsed.fecha, hora: parsed.hora }
-              if (parsed.mensaje_enviado) citaCreada = { tipo: 'mensaje' }
-            } catch {}
-          }
-        }
-      }
-    }
-
-    const finalMsgs: IaMsg[] = [...newMsgs, { role: 'assistant', content: full || '⚠️ Sin respuesta. Comprueba la configuración de la IA.', modo: esGratuito ? 'gratuito' : undefined, cita: citaCreada }]
-    setIaMsgs(finalMsgs)
-    setIaStream('')
-    setIaLoading(false)
-    // Guardar en DB
-    if (convId) iaGuardar(convId, finalMsgs)
-    // Refrescar uso
-    if (chatToken2) loadIaUso(chatToken2)
-  }
-
-  const totalPortafolio = parts.filter(p => p.estado !== 'cancelada').reduce((s, p) => s + p.importe, 0)
-  const rentabilidadPromedio = parts.length > 0
-    ? (parts.reduce((s, p) => s + p.rentabilidad_anual, 0) / parts.length).toFixed(1)
-    : '0.0'
-  const partsActivas = parts.filter(p => p.estado === 'activa')
-  const proximosCobros = parts
-    .filter(p => p.estado === 'activa' && p.fecha_vencimiento)
-    .filter(p => {
-      const diff = new Date(p.fecha_vencimiento).getTime() - Date.now()
-      return diff > 0 && diff < 90 * 86400000
-    })
-    .reduce((s, p) => s + (p.importe * p.rentabilidad_anual / 100 / 4), 0)
-
-  const unreadCount = notifs.filter(n => !n.leida).length
-  const chartData = buildChartData(parts, i18n.months)
-  const initials = cliente ? `${cliente.nombre[0]}${cliente.apellidos[0]}`.toUpperCase() : 'SL'
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ color: 'var(--text-2)' }}>Cargando…</p>
-    </div>
+    <div style={{ padding: '3rem', color: 'var(--text-2)', fontSize: '0.85rem' }}>Cargando tu dashboard…</div>
   )
 
-  if (!cliente) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-0)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <p style={{ color: 'var(--text-2)', marginBottom: '1rem' }}>No se encontró tu perfil de cliente.</p>
-        <button onClick={handleLogout} style={{ background: 'transparent', border: '0.5px solid var(--gold-border)', color: 'var(--gold-200)', padding: '8px 20px', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '0.82rem' }}>Cerrar sesión</button>
-      </div>
-    </div>
-  )
+  const pctAcierto = resumen && resumen.total_preguntas > 0
+    ? Math.round((resumen.correctas_total / resumen.total_preguntas) * 100)
+    : 0
 
-  // ─── Acceso pausado: perfil existe pero membresía inactiva ───
-  const tieneAcceso = (cliente as any).membresia_crowdfunding_activa || (cliente as any).membresia_gratis || (cliente as any).suscripcion_activa
-  if (!tieneAcceso && cliente.tipo_inversor === 'crowdfunding') {
-    const handleRenovar = async () => {
-      setRenovando(true)
-      const res = await fetch('/api/stripe/membresia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: (cliente as any).user_id, email: cliente.email, nombre: `${cliente.nombre} ${cliente.apellidos}` }),
-      })
-      const { url } = await res.json()
-      if (url) window.location.href = url
-      else setRenovando(false)
-    }
-    return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg-0)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
-        <div style={{ maxWidth: '460px', width: '100%', textAlign: 'center' }}>
-          {/* Icono */}
-          <div style={{ width: '72px', height: '72px', borderRadius: '50%', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', fontSize: '28px' }}>⏸</div>
+  const radarData = [
+    { tema: 'Dominados', valor: resumen?.temas_dominados ?? 0 },
+    { tema: 'Progreso', valor: resumen?.temas_en_progreso ?? 0 },
+    { tema: 'Exámenes', valor: resumen?.examenes_total ?? 0 },
+    { tema: 'Acierto %', valor: pctAcierto },
+    { tema: 'Racha días', valor: perfil?.racha_dias ?? 0 },
+  ]
 
-          <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '1rem' }}>Membresía Crowdfunding</div>
-          <h2 style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '2rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '1rem' }}>
-            Acceso temporalmente pausado
-          </h2>
-          <p style={{ color: 'var(--text-2)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
-            Tu membresía anual ha vencido o el último pago no se procesó correctamente. Tu perfil y datos están intactos — reactiva tu acceso en cualquier momento.
-          </p>
-
-          {/* Pricing reminder */}
-          <div style={{ background: 'rgba(201,160,67,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem', marginBottom: '1.75rem' }}>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '0.5rem' }}>Membresía anual · Consigna de documento y capital</div>
-            <div style={{ fontSize: '2rem', fontFamily: 'var(--font-cormorant), serif', fontWeight: 300, color: 'var(--gold-100)' }}>60€ <span style={{ fontSize: '0.9rem', color: 'var(--text-2)' }}>+ IVA / año</span></div>
-          </div>
-
-          <button
-            onClick={handleRenovar}
-            disabled={renovando}
-            style={{ width: '100%', padding: '14px', background: 'var(--gold-200)', color: 'var(--bg-0)', border: 'none', borderRadius: 'var(--radius)', fontFamily: 'var(--font-outfit), sans-serif', fontSize: '12px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600, marginBottom: '0.75rem', opacity: renovando ? 0.7 : 1 }}
-          >
-            {renovando ? 'Redirigiendo…' : 'Reactivar membresía →'}
-          </button>
-
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '1.5rem' }}>
-            ¿Tienes algún problema? Escríbenos a <a href="mailto:hola@gruposkyline.org" style={{ color: 'var(--gold-200)' }}>hola@gruposkyline.org</a>
-          </p>
-
-          <button onClick={handleLogout} style={{ background: 'transparent', border: 'none', color: 'var(--text-3)', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}>
-            Cerrar sesión
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Tab: Dashboard ───────────────────────────────────────
-  const tabDashboard = (
-    <>
-      {/* Greeting */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+  return (
+    <div style={{ padding: '2rem 2.5rem', maxWidth: '1200px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--text-0)', margin: 0 }}>
-            {lang === 'es' ? `Hola ${cliente.nombre}, ` : `Hello ${cliente.nombre}, `}{i18n.goodDay}
-          </h1>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.82rem', marginTop: '6px' }}>
-            {i18n.portfolioSummary}
-          </p>
-        </div>
-        {codigoRef && (
-          <div style={{ background: 'rgba(201,160,67,0.08)', border: '0.5px solid rgba(201,160,67,0.3)', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{i18n.referralCode}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--gold-200)', letterSpacing: '0.05em' }}>#{codigoRef.codigo}</span>
-            <button onClick={() => navigator.clipboard.writeText(codigoRef.codigo)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '11px', padding: '0 4px' }} title="Copiar">⎘</button>
+          <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.4rem' }}>
+            Bienvenido de nuevo
           </div>
-        )}
+          <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)', lineHeight: 1 }}>
+            {perfil?.nombre ?? 'Opositor'}
+          </h1>
+          {perfil && <XpBar xp={perfil.xp_total ?? 0} />}
+        </div>
+        {perfil?.racha_dias ? (
+          <div style={{ textAlign: 'center', background: 'rgba(224,122,77,0.08)', border: '0.5px solid rgba(224,122,77,0.3)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.5rem' }}>
+            <div style={{ fontSize: '2rem' }}>🔥</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#e07a4d' }}>{perfil.racha_dias}</div>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>días de racha</div>
+          </div>
+        ) : null}
       </div>
 
-      {/* KPI Cards */}
-      <div className="rsp-grid-4" style={{ marginBottom: '2rem' }}>
+      {/* KPIs rápidos */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '2rem' }}>
         {[
-          { label: i18n.totalPortfolio, value: `${totalPortafolio.toLocaleString('es-ES')}€`, highlight: true },
-          { label: i18n.avgReturn, value: `${rentabilidadPromedio}%` },
-          { label: i18n.activeInvestments, value: String(partsActivas.length) },
-          { label: i18n.upcomingPayments, value: `${Math.round(proximosCobros).toLocaleString('es-ES')}€` },
-        ].map((k, idx) => (
-          <div key={k.label} style={{
-            background: k.highlight ? 'linear-gradient(135deg, rgba(201,160,67,0.12) 0%, rgba(201,160,67,0.04) 100%)' : 'var(--bg-2)',
-            border: `0.5px solid ${k.highlight ? 'rgba(201,160,67,0.35)' : 'var(--gold-border)'}`,
-            borderRadius: '14px', padding: '1.5rem 1.75rem',
-          }}>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginBottom: '0.6rem', letterSpacing: '0.03em' }}>{k.label}</div>
-            <div style={{ fontSize: idx === 0 ? '1.8rem' : '1.6rem', fontWeight: 700, color: 'var(--gold-100)', lineHeight: 1 }}>{k.value}</div>
+          { label: 'Exámenes realizados', value: resumen?.examenes_total ?? 0, icon: '📝', color: 'var(--gold-100)' },
+          { label: 'Tasa de acierto', value: `${pctAcierto}%`, icon: '🎯', color: pctAcierto >= 70 ? '#4db87a' : '#e07a4d' },
+          { label: 'Temas dominados', value: resumen?.temas_dominados ?? 0, icon: '🏆', color: '#4db87a' },
+          { label: 'XP total', value: (perfil?.xp_total ?? 0).toLocaleString('es-ES'), icon: '⭐', color: 'var(--gold-200)' },
+        ].map(k => (
+          <div key={k.label} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.25rem 1.5rem' }}>
+            <div style={{ fontSize: '1.4rem', marginBottom: '6px' }}>{k.icon}</div>
+            <div className="serif" style={{ fontSize: '1.8rem', fontWeight: 300, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>{k.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Chart + Investments */}
-      <div className="rsp-grid-2" style={{ marginBottom: '2rem' }}>
-        {/* Chart */}
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-0)' }}>{i18n.grossReturn}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: '2px' }}>{i18n.chartSub}</div>
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)', letterSpacing: '0.1em', textTransform: 'uppercase', border: '0.5px solid var(--gold-border)', padding: '4px 10px', borderRadius: '6px' }}>{i18n.months6}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+
+        {/* Acciones rápidas */}
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '1.25rem' }}>
+            Continuar estudiando
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {[
+              { href: '/dashboard/examenes?tipo=adaptativo', icon: '🧠', label: 'Examen adaptativo', desc: 'Ajustado a tu nivel actual', color: 'var(--gold-100)' },
+              { href: '/dashboard/examenes?tipo=repaso_fallos', icon: '🔄', label: 'Repasar mis fallos', desc: `${resumen?.temas_debiles?.length ?? 0} temas para reforzar`, color: '#e07a4d' },
+              { href: '/dashboard/flashcards', icon: '🃏', label: 'Flashcards del día', desc: `${resumen?.proximas_revisiones?.length ?? 0} tarjetas pendientes`, color: '#4d9fd4' },
+              { href: '/dashboard/examenes?tipo=simulacro', icon: '📋', label: 'Simulacro real', desc: 'Condiciones de examen oficial', color: '#4db87a' },
+            ].map(a => (
+              <Link key={a.href} href={a.href} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.875rem', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)', borderRadius: 'var(--radius)', textDecoration: 'none', transition: 'background 0.2s' }}>
+                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{a.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: a.color }}>{a.label}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-3)' }}>{a.desc}</div>
+                </div>
+                <span style={{ color: 'var(--text-3)', fontSize: '14px' }}>›</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Radar de rendimiento */}
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
+          <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '1rem' }}>
+            Radar de rendimiento
           </div>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="goldGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#C9A043" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#C9A043" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false}/>
-              <XAxis dataKey="mes" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }} axisLine={false} tickLine={false}/>
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => v > 999 ? `${(v/1000).toFixed(0)}K` : String(v)}/>
-              <Tooltip content={<ChartTooltip />}/>
-              <Area type="monotone" dataKey="rentabilidad" stroke="#C9A043" strokeWidth={2.5} fill="url(#goldGrad)" dot={false} activeDot={{ r: 5, fill: '#C9A043', stroke: '#1a1610', strokeWidth: 2 }}/>
-            </AreaChart>
+            <RadarChart data={radarData}>
+              <PolarGrid stroke="rgba(255,255,255,0.06)" />
+              <PolarAngleAxis dataKey="tema" tick={{ fontSize: 10, fill: 'rgba(255,255,255,0.4)' }} />
+              <Tooltip contentStyle={{ background: '#1a1610', border: '0.5px solid rgba(201,160,67,0.3)', borderRadius: '8px', fontSize: '12px' }} />
+              <Radar dataKey="valor" stroke="#C9A043" fill="#C9A043" fillOpacity={0.15} strokeWidth={1.5} />
+            </RadarChart>
           </ResponsiveContainer>
         </div>
+      </div>
 
-        {/* Investments */}
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-            <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-0)' }}>{i18n.activeInvestmentsTitle}</div>
-            <button onClick={() => setTab(i18n.myInvestments)} style={{ background: 'none', border: 'none', color: 'var(--gold-200)', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{i18n.viewAll}</button>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+
+        {/* Temas débiles */}
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#e07a4d' }}>⚠️ Temas a reforzar</span>
+            <Link href="/dashboard/progreso" style={{ fontSize: '10px', color: 'var(--gold-200)', textDecoration: 'none' }}>Ver progreso →</Link>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1 }}>
-            {partsActivas.length === 0 ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <p style={{ color: 'var(--text-3)', fontSize: '0.82rem', textAlign: 'center' }}>{i18n.noActiveInvestments}</p>
-              </div>
-            ) : partsActivas.slice(0, 3).map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.875rem 1rem', background: 'var(--bg-3)', borderRadius: '10px', border: '0.5px solid var(--gold-border)' }}>
-                <PropertyIcon tipo={p.tipo}/>
+          <div style={{ padding: '0.5rem 0' }}>
+            {!resumen?.temas_debiles?.length ? (
+              <p style={{ padding: '1rem 1.5rem', color: 'var(--text-3)', fontSize: '0.82rem' }}>¡Ningún tema débil detectado aún!</p>
+            ) : resumen.temas_debiles.slice(0, 5).map((t, i) => (
+              <div key={t.tema_id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem 1.5rem' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(224,122,77,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#e07a4d', fontWeight: 700, flexShrink: 0 }}>
+                  {i + 1}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-0)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre_operacion}</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '2px' }}>
-                    <span style={{ color: TIPO_COLORS[p.tipo] ?? 'var(--gold-200)' }}>{p.tipo.toUpperCase()}</span>
-                    {' · '}Rentabilidad {p.rentabilidad_anual}% anual
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titulo}</div>
+                  <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '5px' }}>
+                    <div style={{ height: '100%', width: `${t.porcentaje_acierto}%`, background: '#e07a4d', borderRadius: '2px' }} />
                   </div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--gold-100)', marginTop: '4px' }}>{p.importe.toLocaleString('es-ES')}€</div>
                 </div>
-                <button
-                  onClick={() => { setExpandedPart(p.id); setTab('Mis Inversiones') }}
-                  style={{ background: 'var(--gold-200)', color: '#1a1506', border: 'none', borderRadius: '8px', padding: '7px 14px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}
-                >
-                  {i18n.viewDetails}
-                </button>
+                <div style={{ fontSize: '11px', color: '#e07a4d', fontWeight: 600, flexShrink: 0 }}>{Math.round(t.porcentaje_acierto)}%</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Temas dominados */}
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <div style={{ padding: '1.25rem 1.5rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4db87a' }}>✅ Temas dominados</span>
+            <Link href="/dashboard/progreso" style={{ fontSize: '10px', color: 'var(--gold-200)', textDecoration: 'none' }}>Ver todos →</Link>
+          </div>
+          <div style={{ padding: '0.5rem 0' }}>
+            {!resumen?.temas_fuertes?.length ? (
+              <p style={{ padding: '1rem 1.5rem', color: 'var(--text-3)', fontSize: '0.82rem' }}>Completa algunos exámenes para ver tus puntos fuertes.</p>
+            ) : resumen.temas_fuertes.slice(0, 5).map((t, i) => (
+              <div key={t.tema_id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0.75rem 1.5rem' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(77,184,122,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#4db87a', fontWeight: 700, flexShrink: 0 }}>
+                  {i + 1}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.titulo}</div>
+                  <div style={{ height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '2px', marginTop: '5px' }}>
+                    <div style={{ height: '100%', width: `${t.porcentaje_acierto}%`, background: '#4db87a', borderRadius: '2px' }} />
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#4db87a', fontWeight: 600, flexShrink: 0 }}>{Math.round(t.porcentaje_acierto)}%</div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Operaciones + Rent to Rent previews */}
-      {ops.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
+      {/* BOE / Noticias recientes */}
+      {resumen?.oposicion_activa && (
+        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <div style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-0)' }}>{i18n.studiedOperations}</div>
-            <button onClick={() => setTab(i18n.marketplace)} style={{ background: 'none', border: 'none', color: 'var(--gold-200)', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{i18n.viewAll}</button>
+            <div style={{ fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold-200)' }}>
+              📡 BOE · {resumen.oposicion_activa.nombre_corto ?? resumen.oposicion_activa.nombre}
+            </div>
+            <Link href="/dashboard/boe-radar" style={{ fontSize: '10px', color: 'var(--gold-200)', textDecoration: 'none' }}>Ver radar →</Link>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
-            {ops.slice(0, 3).map(op => (
-              <div key={op.id} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '12px', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                <span style={{ padding: '3px 8px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.12em', color: TIPO_COLORS[op.tipo] ?? 'var(--gold-200)', border: `0.5px solid ${TIPO_COLORS[op.tipo] ?? 'var(--gold-border)'}`, borderRadius: '5px', width: 'fit-content' }}>{op.tipo}</span>
-                <div style={{ fontWeight: 600, color: 'var(--text-0)', fontSize: '0.88rem', lineHeight: 1.4 }}>{op.titulo}</div>
-                {op.descripcion && <div style={{ fontSize: '0.75rem', color: 'var(--text-2)', lineHeight: 1.6 }}>{op.descripcion.slice(0, 80)}{op.descripcion.length > 80 ? '…' : ''}</div>}
-                {op.pdf_url && (
-                  <a href={op.pdf_url} target="_blank" rel="noopener noreferrer" style={{ marginTop: 'auto', display: 'inline-flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: 'var(--gold-200)', fontSize: '10px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                    {i18n.viewReport}
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Sin publicaciones recientes para esta oposición. El radar monitorea el BOE cada 24h.</p>
         </div>
       )}
-    </>
-  )
-
-  // ─── Tab: Mis Inversiones ─────────────────────────────────
-  const tabInversiones = (
-    <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-0)', margin: 0 }}>{i18n.myParticipations}</h2>
-        <p style={{ color: 'var(--text-3)', fontSize: '0.8rem', marginTop: '4px' }}>{i18n.participationsTotal(parts.length)}</p>
-      </div>
-      <div className="export-bar" style={{ marginBottom: '1rem' }}>
-        <button className="btn-export" onClick={() => downloadCSV(parts.map(p => ({ Operación: p.nombre_operacion, Tipo: p.tipo, Capital: p.importe, 'Rentabilidad %': p.rentabilidad_anual, Estado: p.estado, 'Fecha entrada': p.fecha_entrada, 'Fecha vencimiento': p.fecha_vencimiento ?? '' })), 'participaciones')}>{i18n.exportCSV}</button>
-        <button className="btn-export-excel" onClick={() => downloadExcel(parts.map(p => ({ Operación: p.nombre_operacion, Tipo: p.tipo, Capital: p.importe, 'Rentabilidad %': p.rentabilidad_anual, Estado: p.estado, 'Fecha entrada': p.fecha_entrada, 'Fecha vencimiento': p.fecha_vencimiento ?? '' })), 'participaciones')}>{i18n.exportExcel}</button>
-      </div>
-      {parts.length === 0 ? (
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.88rem' }}>{i18n.noParticipations}</p>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {parts.map(p => (
-            <div key={p.id} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden' }}>
-              <div
-                style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', cursor: 'pointer' }}
-                onClick={() => setExpandedPart(expandedPart === p.id ? null : p.id)}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <PropertyIcon tipo={p.tipo}/>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-0)', fontSize: '0.95rem' }}>{p.nombre_operacion}</span>
-                      <span style={{ padding: '2px 7px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.1em', color: TIPO_COLORS[p.tipo] ?? 'var(--gold-200)', border: `0.5px solid ${TIPO_COLORS[p.tipo] ?? 'var(--gold-border)'}`, borderRadius: '5px' }}>{p.tipo}</span>
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '4px' }}>
-                      {p.fecha_entrada}{p.fecha_vencimiento ? ` → ${p.fecha_vencimiento}` : ''}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--gold-100)' }}>{p.importe.toLocaleString('es-ES')}€</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>{i18n.capital}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--gold-200)' }}>{p.rentabilidad_anual}%</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>{i18n.annual}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#6dc86d' }}>{(p.rentabilidad_acum ?? 0).toLocaleString('es-ES')}€</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>{i18n.cumulative}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: ESTADO_DOT[p.estado] ?? '#888', display: 'inline-block' }}/>
-                    <span style={{ fontSize: '10px', color: ESTADO_DOT[p.estado] ?? 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{p.estado}</span>
-                  </div>
-                  <span style={{ color: 'var(--text-3)', fontSize: '12px', transform: expandedPart === p.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▼</span>
-                </div>
-              </div>
-              {expandedPart === p.id && p.movimientos && p.movimientos.length > 0 && (
-                <div className="table-scroll" style={{ borderTop: '0.5px solid var(--gold-border)' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
-                        {[i18n.date, i18n.type, i18n.amount, i18n.description].map(h => (
-                          <th key={h} style={{ padding: '0.6rem 1.5rem', textAlign: 'left', fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 400 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {p.movimientos.map(m => (
-                        <tr key={m.id} style={{ borderBottom: '0.5px solid rgba(62,59,53,0.2)' }}>
-                          <td style={{ padding: '0.65rem 1.5rem', fontSize: '0.78rem', color: 'var(--text-2)' }}>{m.fecha}</td>
-                          <td style={{ padding: '0.65rem 1.5rem' }}>
-                            <span style={{ padding: '2px 7px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', borderRadius: '5px', background: m.tipo === 'entrada' ? 'rgba(100,200,100,0.1)' : ['interes','dividendo'].includes(m.tipo) ? 'rgba(201,160,67,0.1)' : 'rgba(255,80,80,0.1)', color: m.tipo === 'entrada' ? '#6dc86d' : ['interes','dividendo'].includes(m.tipo) ? 'var(--gold-200)' : '#e05' }}>{m.tipo}</span>
-                          </td>
-                          <td style={{ padding: '0.65rem 1.5rem', fontSize: '0.88rem', fontWeight: 600, color: ['salida','comision'].includes(m.tipo) ? '#e05' : m.tipo === 'entrada' ? 'var(--text-0)' : '#6dc86d' }}>
-                            {['salida','comision'].includes(m.tipo) ? '-' : '+'}{m.importe.toLocaleString('es-ES')}€
-                          </td>
-                          <td style={{ padding: '0.65rem 1.5rem', fontSize: '0.78rem', color: 'var(--text-2)' }}>{m.descripcion || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-
-  // ─── Tab: Marketplace (Operaciones) ───────────────────────
-  const tabMarketplace = (
-    <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-0)', margin: 0 }}>{i18n.studiedOperations}</h2>
-        <p style={{ color: 'var(--text-3)', fontSize: '0.8rem', marginTop: '4px' }}>Operaciones analizadas y seleccionadas por el equipo de GrupoSkyLine.</p>
-      </div>
-      {ops.length === 0 ? (
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.88rem' }}>No hay operaciones publicadas aún.</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-          {[...ops]
-            .sort((a: any, b: any) => {
-              // Finalizada siempre al fondo; dentro de cada grupo, más reciente primero
-              const af = (a.estado_operacion === 'finalizada') ? 1 : 0
-              const bf = (b.estado_operacion === 'finalizada') ? 1 : 0
-              return af - bf || b.created_at.localeCompare(a.created_at)
-            })
-            .map((op: any) => (
-              <MarketplaceCard
-                key={op.id}
-                op={op}
-                onVerPDF={op.pdf_url ? () => window.open(op.pdf_url!, '_blank') : undefined}
-                userEmail={cliente?.email}
-                userId={(cliente as any)?.user_id}
-                onClick={() => setDetailOp(op)}
-              />
-            ))}
-        </div>
-      )}
-      {/* Ficha técnica modal */}
-      {detailOp && (
-        <AssetDetailModal
-          op={detailOp}
-          onClose={() => setDetailOp(null)}
-          onVerPDF={detailOp.pdf_url ? () => window.open(detailOp.pdf_url!, '_blank') : undefined}
-          userEmail={cliente?.email}
-          userId={(cliente as any)?.user_id}
-          authToken={chatToken}
-        />
-      )}
-      {/* Rent to Rent */}
-      {rentEntries.length > 0 && (
-        <>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 600, color: 'var(--text-0)', margin: '2.5rem 0 1rem' }}>Rent to Rent</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            {rentEntries.map(e => (
-              <div key={e.id} style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden' }}>
-                {e.video_url && getEmbedUrl(e.video_url) && (
-                  <div style={{ aspectRatio: '16/9', background: '#000' }}>
-                    <iframe src={getEmbedUrl(e.video_url)!} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen/>
-                  </div>
-                )}
-                <div style={{ padding: '1.5rem 2rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-0)', marginBottom: '0.5rem' }}>{e.titulo}</h3>
-                  {e.descripcion && <p style={{ fontSize: '0.82rem', color: 'var(--text-2)', lineHeight: 1.6, marginBottom: '1rem' }}>{e.descripcion}</p>}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
-                    {e.ubicacion && <div><div style={{ fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Ubicación</div><div style={{ fontSize: '0.85rem', color: 'var(--text-1)' }}>{e.ubicacion}</div></div>}
-                    {e.rentabilidad && <div><div style={{ fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Rentabilidad</div><div style={{ fontSize: '0.85rem', color: '#6dc86d', fontWeight: 600 }}>{e.rentabilidad}</div></div>}
-                    {e.precio_alquiler && <div><div style={{ fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Alquiler</div><div style={{ fontSize: '0.85rem', color: 'var(--text-1)' }}>{e.precio_alquiler.toLocaleString('es-ES')}€/mes</div></div>}
-                    {e.precio_subarrendamiento && <div><div style={{ fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Subarrendamiento</div><div style={{ fontSize: '0.85rem', color: 'var(--gold-200)', fontWeight: 600 }}>{e.precio_subarrendamiento.toLocaleString('es-ES')}€/mes</div></div>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-
-  // ─── Tab: Transacciones ───────────────────────────────────
-  const allMovimientos = parts.flatMap(p =>
-    (p.movimientos || []).map(m => ({ ...m, operacion: p.nombre_operacion, tipo_inv: p.tipo }))
-  ).sort((a, b) => b.fecha.localeCompare(a.fecha))
-
-  const tabTransacciones = (
-    <div>
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-0)', margin: 0 }}>{i18n.transactionHistory}</h2>
-        <p style={{ color: 'var(--text-3)', fontSize: '0.8rem', marginTop: '4px' }}>{i18n.transactionsTotal(allMovimientos.length)}</p>
-      </div>
-      <div className="export-bar" style={{ marginBottom: '1rem' }}>
-        <button className="btn-export" onClick={() => downloadCSV(allMovimientos.map(m => ({ Fecha: m.fecha, Operación: m.operacion, Tipo: m.tipo, Importe: m.importe, Descripción: m.descripcion ?? '' })), 'transacciones')}>{i18n.exportCSV}</button>
-        <button className="btn-export-excel" onClick={() => downloadExcel(allMovimientos.map(m => ({ Fecha: m.fecha, Operación: m.operacion, Tipo: m.tipo, Importe: m.importe, Descripción: m.descripcion ?? '' })), 'transacciones')}>{i18n.exportExcel}</button>
-      </div>
-      {allMovimientos.length === 0 ? (
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.88rem' }}>{i18n.noTransactions}</p>
-        </div>
-      ) : (
-        <div className="table-scroll" style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'rgba(0,0,0,0.25)' }}>
-                {[i18n.date, i18n.operation, i18n.type, i18n.amount, i18n.description].map(h => (
-                  <th key={h} style={{ padding: '0.875rem 1.5rem', textAlign: 'left', fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 400 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {allMovimientos.map(m => (
-                <tr key={m.id} style={{ borderBottom: '0.5px solid rgba(62,59,53,0.2)' }}>
-                  <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.78rem', color: 'var(--text-2)', whiteSpace: 'nowrap' }}>{m.fecha}</td>
-                  <td style={{ padding: '0.875rem 1.5rem' }}>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-0)', fontWeight: 500 }}>{m.operacion}</div>
-                    <div style={{ fontSize: '10px', color: TIPO_COLORS[m.tipo_inv] ?? 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>{m.tipo_inv}</div>
-                  </td>
-                  <td style={{ padding: '0.875rem 1.5rem' }}>
-                    <span style={{ padding: '2px 7px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.08em', borderRadius: '5px', background: m.tipo === 'entrada' ? 'rgba(100,200,100,0.1)' : ['interes','dividendo'].includes(m.tipo) ? 'rgba(201,160,67,0.1)' : 'rgba(255,80,80,0.1)', color: m.tipo === 'entrada' ? '#6dc86d' : ['interes','dividendo'].includes(m.tipo) ? 'var(--gold-200)' : '#e05' }}>{m.tipo}</span>
-                  </td>
-                  <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.9rem', fontWeight: 700, color: ['salida','comision'].includes(m.tipo) ? '#e05' : m.tipo === 'entrada' ? 'var(--text-0)' : '#6dc86d' }}>
-                    {['salida','comision'].includes(m.tipo) ? '−' : '+'}{m.importe.toLocaleString('es-ES')}€
-                  </td>
-                  <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.78rem', color: 'var(--text-2)' }}>{m.descripcion || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  )
-
-  // ─── Tab: Referidos ───────────────────────────────────────
-  const tabReferidos = (
-    <div>
-      {!codigoRef ? (
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '3rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔗</div>
-          <p style={{ color: 'var(--text-1)', fontWeight: 600, marginBottom: '0.5rem' }}>{i18n.referralProgram}</p>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.82rem' }}>{i18n.noReferralCode}</p>
-        </div>
-      ) : (
-        <>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-0)', margin: 0 }}>{i18n.inviteAndEarn}</h2>
-            <p style={{ color: 'var(--text-3)', fontSize: '0.8rem', marginTop: '4px' }}>{i18n.inviteSubtitle}</p>
-          </div>
-          <div className="rsp-grid-2" style={{ marginBottom: '1.5rem' }}>
-            <div style={{ background: 'linear-gradient(135deg, rgba(201,160,67,0.1) 0%, rgba(201,160,67,0.03) 100%)', border: '0.5px solid rgba(201,160,67,0.35)', borderRadius: '14px', padding: '1.75rem' }}>
-              <div style={{ fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '0.75rem' }}>{i18n.yourCode}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--gold-100)', letterSpacing: '0.08em' }}>{codigoRef.codigo}</span>
-                <button onClick={() => navigator.clipboard.writeText(codigoRef.codigo)} style={{ background: 'rgba(201,160,67,0.1)', border: '0.5px solid rgba(201,160,67,0.3)', color: 'var(--gold-200)', padding: '5px 12px', borderRadius: '7px', cursor: 'pointer', fontSize: '10px', letterSpacing: '0.08em' }}>{i18n.copy}</button>
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-2)', lineHeight: 1.6 }}>
-                {i18n.referralShareDesc}
-              </div>
-            </div>
-            <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1.75rem', display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--gold-100)' }}>{codigoRef.usos}</div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '4px' }}>{i18n.referralsTotalLabel}{codigoRef.max_usos ? ` / ${codigoRef.max_usos} máx.` : ''}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#6dc86d' }}>
-                  {referidos.reduce((s, r) => s + (r.comision_importe ?? 0), 0).toLocaleString('es-ES')}€
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: '4px' }}>{i18n.commissionsGenerated}</div>
-              </div>
-            </div>
-          </div>
-          {referidos.length > 0 && (
-            <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'rgba(0,0,0,0.25)' }}>
-                    {[i18n.referredInvestor, i18n.date, i18n.commPct, i18n.commAmount, i18n.status].map(h => (
-                      <th key={h} style={{ padding: '0.75rem 1.5rem', textAlign: 'left', fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', fontWeight: 400 }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {referidos.map(r => (
-                    <tr key={r.id} style={{ borderBottom: '0.5px solid rgba(62,59,53,0.2)' }}>
-                      <td style={{ padding: '0.875rem 1.5rem' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-0)', fontWeight: 600 }}>{r.referred ? `${r.referred.nombre} ${r.referred.apellidos}` : '—'}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: '2px' }}>{r.referred?.email}</div>
-                      </td>
-                      <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.78rem', color: 'var(--text-2)' }}>{r.referred ? new Date(r.referred.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
-                      <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.88rem', color: 'var(--gold-200)', fontWeight: 600 }}>{r.comision_pct}%</td>
-                      <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.88rem', fontWeight: 600, color: r.comision_importe > 0 ? '#6dc86d' : 'var(--text-3)' }}>{r.comision_importe > 0 ? `${r.comision_importe.toLocaleString('es-ES')}€` : '—'}</td>
-                      <td style={{ padding: '0.875rem 1.5rem' }}>
-                        <span style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '5px', textTransform: 'uppercase', letterSpacing: '0.08em', background: r.comision_pagada ? 'rgba(100,200,100,0.1)' : 'rgba(201,160,67,0.08)', color: r.comision_pagada ? '#6dc86d' : 'var(--gold-200)', border: `0.5px solid ${r.comision_pagada ? '#6dc86d44' : 'rgba(201,160,67,0.25)'}` }}>{r.comision_pagada ? i18n.paid : i18n.pending}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-
-  // ─── Tab: Perfil ──────────────────────────────────────────
-  const tabPerfil = (
-    <div style={{ maxWidth: '560px' }}>
-      <h2 style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--text-0)', marginBottom: '1.5rem' }}>{i18n.myProfile}</h2>
-      <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-        {[
-          { label: i18n.name, value: `${cliente.nombre} ${cliente.apellidos}` },
-          { label: i18n.email, value: cliente.email },
-          { label: i18n.investorType, value: cliente.tipo_inversor.toUpperCase() },
-          { label: i18n.accountStatus, value: cliente.estado.toUpperCase() },
-          { label: i18n.initialCapital, value: `${cliente.capital_inicial.toLocaleString('es-ES')}€` },
-        ].map(f => (
-          <div key={f.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '1rem', borderBottom: '0.5px solid var(--gold-border)' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>{f.label}</span>
-            <span style={{ fontSize: '0.88rem', color: 'var(--text-0)', fontWeight: 500 }}>{f.value}</span>
-          </div>
-        ))}
-      </div>
-      <Link href="/dashboard/configuracion" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '1rem', textDecoration: 'none', color: 'var(--gold-200)', fontSize: '0.82rem', border: '0.5px solid var(--gold-border)', padding: '10px 18px', borderRadius: '8px' }}>
-        {i18n.accountPrefs}
-      </Link>
-    </div>
-  )
-
-  // ─── Chat send ────────────────────────────────────────────
-  async function handleChatSend(e: React.FormEvent) {
-    e.preventDefault()
-    if (!selectedConv || (!chatTexto.trim() && !chatArchivo) || !chatToken) return
-    setChatEnviando(true)
-    let body: FormData | string
-    if (chatArchivo) {
-      const fd = new FormData()
-      fd.append('conversacion_id', selectedConv.id)
-      if (chatTexto.trim()) fd.append('contenido', chatTexto.trim())
-      fd.append('archivo', chatArchivo)
-      body = fd
-    } else {
-      body = JSON.stringify({ conversacion_id: selectedConv.id, contenido: chatTexto.trim() })
-    }
-    const res = await fetch('/api/chat/mensajes', {
-      method: 'POST',
-      headers: chatArchivo ? { Authorization: `Bearer ${chatToken}` } : { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken}` },
-      body,
-    })
-    if (res.ok) {
-      const msg = await res.json()
-      setChatMsgs(prev => [...prev, msg])
-      setChatTexto(''); setChatArchivo(null)
-      setConvs(prev => prev.map(c => c.id === selectedConv.id ? { ...c, ultimo_mensaje: msg.contenido || msg.archivo_nombre, ultimo_mensaje_at: msg.created_at } : c))
-    }
-    setChatEnviando(false)
-  }
-
-  // ─── Tab: Mensajes ────────────────────────────────────────
-  const unreadMsgs = convs.reduce((s, c) => s + (c.no_leidos_cliente || 0), 0)
-
-  const tabMensajes = (
-    <div className="chat-layout" style={{ height: 'calc(100vh - 200px)', minHeight: '500px' }}>
-      {/* Conversation list */}
-      <div style={{ width: '280px', flexShrink: 0, background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '1rem', borderBottom: '0.5px solid var(--gold-border)', flexShrink: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-0)' }}>{i18n.myConversations}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px' }}>{i18n.chatWithAdvisor}</div>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {convs.length === 0 ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-3)', fontSize: '12px' }}>
-              {i18n.noConversations}
-            </div>
-          ) : convs.map(c => (
-            <div key={c.id} onClick={() => { setSelectedConv(c); setConvs(prev => prev.map(x => x.id === c.id ? { ...x, no_leidos_cliente: 0 } : x)) }}
-              style={{ padding: '0.875rem 1rem', cursor: 'pointer', borderBottom: '0.5px solid rgba(62,59,53,0.2)', background: selectedConv?.id === c.id ? 'rgba(201,160,67,0.07)' : 'transparent', borderLeft: selectedConv?.id === c.id ? '2px solid var(--gold-200)' : '2px solid transparent' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '170px' }}>
-                  {c.operacion_nombre || 'GrupoSkyLine'}
-                </div>
-                {c.no_leidos_cliente > 0 && (
-                  <span style={{ background: 'var(--gold-200)', color: '#1a1506', borderRadius: '10px', fontSize: '9px', fontWeight: 700, padding: '1px 6px', flexShrink: 0 }}>{c.no_leidos_cliente}</span>
-                )}
-              </div>
-              {c.referencia_catastral && (
-                <div style={{ fontSize: '10px', color: 'var(--gold-200)', marginTop: '2px' }}>🏛 {c.referencia_catastral}</div>
-              )}
-              <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {c.ultimo_mensaje || 'Sin mensajes aún'}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Chat window */}
-      {!selectedConv ? (
-        <div style={{ flex: 1, background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '0.75rem' }}>
-          <div style={{ fontSize: '2.5rem' }}>💬</div>
-          <p style={{ color: 'var(--text-3)', fontSize: '0.85rem' }}>{i18n.selectConversation}</p>
-        </div>
-      ) : (
-        <div style={{ flex: 1, background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          {/* Header */}
-          <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)', background: 'var(--bg-1)', flexShrink: 0 }}>
-            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-0)' }}>{selectedConv.operacion_nombre || 'GrupoSkyLine'}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '2px', display: 'flex', gap: '8px' }}>
-              <span>{i18n.privateChatWith}</span>
-              {selectedConv.referencia_catastral && <span style={{ color: 'var(--gold-200)' }}>🏛 {selectedConv.referencia_catastral}</span>}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-            {chatMsgs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-3)', fontSize: '12px', marginTop: '2rem' }}>{i18n.noMessages}</div>
-            ) : chatMsgs.map(m => {
-              const isMe = m.remitente === 'cliente'
-              return (
-                <div key={m.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                  <div style={{ maxWidth: '68%' }}>
-                    {m.es_broadcast && <div style={{ fontSize: '9px', color: 'var(--gold-200)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '3px' }}>📢 {i18n.broadcastLabel}</div>}
-                    {m.requiere_firma && <div style={{ fontSize: '9px', color: '#ef4444', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '3px' }}>✍️ {i18n.requiresReview}</div>}
-                    <div style={{ padding: '10px 14px', borderRadius: isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px', background: isMe ? 'linear-gradient(135deg, rgba(201,160,67,0.18), rgba(201,160,67,0.08))' : 'var(--bg-3)', border: `0.5px solid ${isMe ? 'rgba(201,160,67,0.25)' : 'var(--gold-border)'}` }}>
-                      {m.contenido && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-0)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{m.contenido}</p>}
-                      {m.archivo_url && m.archivo_nombre && (
-                        <a href={m.archivo_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', marginTop: m.contenido ? '8px' : '0', background: 'rgba(0,0,0,0.15)', border: '0.5px solid rgba(201,160,67,0.2)', borderRadius: '8px', padding: '7px 11px', textDecoration: 'none', color: 'var(--gold-200)', fontSize: '12px' }}>
-                          <span>{m.archivo_tipo === 'imagen' ? '🖼️' : '📄'}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>{m.archivo_nombre}</span>
-                          <span style={{ color: 'var(--text-3)', fontSize: '10px' }}>↓</span>
-                        </a>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px', textAlign: isMe ? 'right' : 'left' }}>
-                      {new Date(m.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                      {isMe && <span style={{ marginLeft: '6px', color: m.leido ? '#6dc86d' : 'var(--text-3)' }}>{m.leido ? '✓✓' : '✓'}</span>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input */}
-          <form onSubmit={handleChatSend} style={{ padding: '0.875rem 1.25rem', borderTop: '0.5px solid var(--gold-border)', background: 'var(--bg-1)', flexShrink: 0 }}>
-            {chatArchivo && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-3)', border: '0.5px solid var(--gold-border)', borderRadius: '8px', padding: '5px 10px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--gold-200)', flex: 1 }}>📎 {chatArchivo.name}</span>
-                <button type="button" onClick={() => setChatArchivo(null)} style={{ background: 'none', border: 'none', color: '#e05', cursor: 'pointer', fontSize: '12px' }}>✕</button>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
-              <button type="button" onClick={() => chatFileRef.current?.click()} style={{ background: 'var(--bg-3)', border: '0.5px solid var(--gold-border)', color: 'var(--text-2)', borderRadius: '10px', padding: '9px 11px', cursor: 'pointer', fontSize: '15px', flexShrink: 0 }} title="Adjuntar archivo">📎</button>
-              <input ref={chatFileRef} type="file" style={{ display: 'none' }} onChange={e => setChatArchivo(e.target.files?.[0] || null)} />
-              <input
-                value={chatTexto}
-                onChange={e => setChatTexto(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleChatSend(e as any) } }}
-                placeholder={i18n.writePlaceholder}
-                style={{ flex: 1, background: 'var(--bg-3)', border: '0.5px solid var(--gold-border)', borderRadius: '10px', padding: '9px 14px', color: 'var(--text-0)', fontSize: '0.85rem', outline: 'none' }}
-              />
-              <button type="submit" disabled={chatEnviando || (!chatTexto.trim() && !chatArchivo)} style={{ background: chatEnviando || (!chatTexto.trim() && !chatArchivo) ? 'var(--bg-3)' : 'var(--gold-200)', border: 'none', color: chatEnviando || (!chatTexto.trim() && !chatArchivo) ? 'var(--text-3)' : '#1a1506', borderRadius: '10px', padding: '9px 15px', cursor: 'pointer', fontSize: '15px', flexShrink: 0, transition: 'all 0.15s' }}>
-                {chatEnviando ? '…' : '→'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-    </div>
-  )
-
-  const tabCalendario = (
-    <div style={{ padding: '2rem 0' }}>
-      <Calendario
-        eventos={eventos}
-        onAddEvento={async (ev) => {
-          const res = await fetch('/api/calendario', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
-            body: JSON.stringify(ev),
-          })
-          const nuevo = await res.json()
-          if (nuevo.id) setEventos(prev => [...prev, nuevo])
-        }}
-        onDeleteEvento={async (id) => {
-          await fetch('/api/calendario', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` },
-            body: JSON.stringify({ id }),
-          })
-          setEventos(prev => prev.filter(e => e.id !== id))
-        }}
-        clienteId={cliente.id}
-      />
-    </div>
-  )
-
-  // ── TAB ASISTENTE IA ─────────────────────────────────────────────
-  const SUGERENCIAS_IA = ['¿Cuál es el mínimo de inversión?', '¿Cómo funciona el crowdfunding?', '¿Qué documentos necesito?', '¿Cuánto cuesta la membresía?']
-  const TIPO_COLOR_IA: Record<string, string> = { npl: '#b87333', crowdfunding: '#C9A043', hipotecario: '#7c6fd4' }
-
-  const tabAsistenteIA = (
-    <div style={{ padding: '2rem 0' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h2 className="serif" style={{ fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.5rem' }}>Asistente IA</h2>
-        <p style={{ fontSize: '0.82rem', color: 'var(--text-3)' }}>Responde tus preguntas sobre inversiones, documentación y operaciones.</p>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-3)', opacity: 0.6, marginTop: '0.4rem', lineHeight: 1.55 }}>
-          * Este servicio está sujeto a cambios, incluso a su anulación, si la empresa proveedora altera, cambia o modifica los precios.
-        </p>
-      </div>
-
-    <div style={{ display: 'flex', gap: '1.25rem', alignItems: 'flex-start' }}>
-
-      {/* ── PANEL LATERAL: conversaciones ── */}
-      <div style={{ width: '220px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <button
-          onClick={iaNuevaConv}
-          disabled={iaConvs.length >= 3}
-          style={{ width: '100%', padding: '9px 14px', borderRadius: '10px', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: iaConvs.length >= 3 ? 'not-allowed' : 'pointer', background: iaConvs.length >= 3 ? 'rgba(201,160,67,0.08)' : 'var(--gold-200)', color: iaConvs.length >= 3 ? 'var(--text-3)' : '#0a0a0a', border: '0.5px solid var(--gold-border)', transition: 'all 0.15s' }}
-        >
-          + Nueva {iaConvs.length >= 3 ? '(máx. 3)' : `(${3 - iaConvs.length} restante${3 - iaConvs.length !== 1 ? 's' : ''})`}
-        </button>
-
-        {iaConvs.length === 0 && (
-          <div style={{ fontSize: '11px', color: 'var(--text-3)', textAlign: 'center', padding: '1rem 0' }}>
-            Sin conversaciones aún
-          </div>
-        )}
-
-        {iaConvs.map(conv => {
-          const activa = iaConvActiva?.id === conv.id
-          return (
-            <div
-              key={conv.id}
-              onClick={() => { setIaConvActiva(conv); setIaMsgs(Array.isArray(conv.mensajes) ? conv.mensajes : []) }}
-              style={{ borderRadius: '10px', padding: '10px 12px', cursor: 'pointer', background: activa ? 'rgba(201,160,67,0.1)' : 'var(--bg-2)', border: `0.5px solid ${activa ? 'rgba(201,160,67,0.45)' : 'var(--gold-border)'}`, transition: 'all 0.15s', position: 'relative' }}
-            >
-              <div style={{ fontSize: '12px', fontWeight: 500, color: activa ? 'var(--gold-100)' : 'var(--text-1)', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '18px' }}>
-                {conv.titulo}
-              </div>
-              <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>
-                {new Date(conv.updated_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                {' · '}{Array.isArray(conv.mensajes) ? Math.floor(conv.mensajes.length / 2) : 0} mens.
-              </div>
-              <button
-                onClick={e => { e.stopPropagation(); if (confirm('¿Eliminar esta conversación?')) iaEliminarConv(conv.id) }}
-                style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: '13px', lineHeight: 1, padding: '2px' }}
-                title="Eliminar"
-              >×</button>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* ── ÁREA DE CHAT ── */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-
-      {/* Medidor de uso */}
-      {iaUso && (
-        <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', padding: '1rem 1.25rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                Uso IA · {iaUso.periodo === 'dia' ? 'Hoy' : 'Esta semana'}
-              </span>
-              <span style={{ fontSize: '11px', color: iaUso.modoGratuito ? '#e05656' : '#6dc86d', fontWeight: 600 }}>
-                {iaUso.modoGratuito ? '⚡ Modo básico activo' : '✦ Premium activo'}
-              </span>
-            </div>
-            <div style={{ height: '5px', background: 'var(--bg-3)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: '3px', transition: 'width 0.5s',
-                width: `${Math.min((iaUso.gasto / iaUso.limite) * 100, 100)}%`,
-                background: iaUso.modoGratuito
-                  ? 'linear-gradient(90deg,#e05656,#c04040)'
-                  : 'linear-gradient(90deg,#C9A043,#a07828)',
-              }} />
-            </div>
-            <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--text-3)' }}>
-              {(iaUso.gasto * 100).toFixed(3)} ¢ de {(iaUso.limite * 100).toFixed(0)} ¢ usados
-              {' · '}{iaUso.modoGratuito
-                ? 'Se reinicia ' + (iaUso.periodo === 'dia' ? 'mañana' : 'el próximo lunes')
-                : 'Respuestas con IA avanzada'}
-            </div>
-          </div>
-          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', flexShrink: 0 }}>✦</div>
-        </div>
-      )}
-
-      {/* ── CITAS REPROGRAMADAS PENDIENTES DE CONFIRMAR ── */}
-      {misCitas.filter(c => c.estado === 'reprogramada').map(cita => (
-        <div key={cita.id} style={{ background: 'rgba(77,166,212,0.06)', border: '0.5px solid rgba(77,166,212,0.35)', borderRadius: '14px', padding: '1.1rem 1.25rem', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-            <div>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#4da6d4', marginBottom: '2px' }}>📅 Nueva propuesta de horario</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
-                El equipo te propone una llamada
-                {cita.fecha_confirmada ? ` el ${new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}` : ''}
-              </div>
-              {cita.nota_admin && <div style={{ fontSize: '11px', color: 'var(--text-3)', marginTop: '4px' }}>{cita.nota_admin}</div>}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button
-              onClick={async () => {
-                await fetch('/api/citas', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` }, body: JSON.stringify({ id: cita.id, accion: 'aceptar' }) })
-                setMisCitas(prev => prev.map(c => c.id === cita.id ? { ...c, estado: 'confirmada' } : c))
-                if (chatToken2) {
-                  fetch('/api/citas', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then(d => setMisCitas(Array.isArray(d) ? d : []))
-                  // Recargar eventos del calendario
-                  fetch('/api/calendario', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then((evs: EventoCalendario[]) => setEventos(prev => {
-                    const autoEvs = prev.filter(e => e.id.startsWith('auto-venc-'))
-                    return [...evs, ...autoEvs]
-                  }))
-                }
-              }}
-              style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: '#6dc86d', border: 'none', color: '#0a0a0a' }}>
-              ✓ Aceptar llamada
-            </button>
-            <button
-              onClick={async () => {
-                await fetch('/api/citas', { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${chatToken2}` }, body: JSON.stringify({ id: cita.id, accion: 'rechazar' }) })
-                // Recargar citas frescas del servidor
-                if (chatToken2) fetch('/api/citas', { headers: { Authorization: `Bearer ${chatToken2}` } }).then(r => r.json()).then(d => setMisCitas(Array.isArray(d) ? d : []))
-              }}
-              style={{ padding: '7px 18px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer', background: 'transparent', border: '0.5px solid rgba(224,86,86,0.5)', color: '#e05656' }}>
-              ✕ No me viene bien
-            </button>
-          </div>
-        </div>
-      ))}
-
-      {/* Ventana de chat */}
-      <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {/* Mensajes */}
-        <div style={{ minHeight: '360px', maxHeight: '480px', overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-
-          {/* Bienvenida */}
-          {iaMsgs.length === 0 && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '1rem' }}>
-                <div style={{ maxWidth: '80%', padding: '0.75rem 1rem', borderRadius: '14px 14px 14px 2px', fontSize: '13px', lineHeight: 1.7, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)' }}>
-                  Hola, soy tu asistente de GrupoSkyLine. ¿En qué puedo ayudarte hoy?
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {SUGERENCIAS_IA.map(s => (
-                  <button key={s} onClick={() => sendIa(s)}
-                    style={{ fontSize: '11px', padding: '5px 12px', borderRadius: '20px', border: '0.5px solid rgba(201,160,67,0.3)', background: 'rgba(201,160,67,0.06)', color: '#C9A043', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.14)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.06)')}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {iaMsgs.map((m, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{
-                maxWidth: '80%', padding: '0.75rem 1rem', fontSize: '13px', lineHeight: 1.7,
-                borderRadius: m.role === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                background: m.role === 'user' ? 'linear-gradient(135deg,#C9A043,#a07828)' : 'var(--bg-1)',
-                color: m.role === 'user' ? '#0a0a0a' : 'var(--text-1)',
-                border: m.role === 'assistant' ? '0.5px solid var(--gold-border)' : 'none',
-                fontWeight: m.role === 'user' ? 500 : 400,
-              }}>
-                {m.content}
-              </div>
-              {m.modo === 'gratuito' && (
-                <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '3px' }}>⚡ Modo básico</div>
-              )}
-              {m.cita && m.cita.tipo === 'mensaje' && (
-                <div style={{ marginTop: '8px', background: 'rgba(77,166,212,0.08)', border: '0.5px solid rgba(77,166,212,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#4da6d4', maxWidth: '80%' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>✉️ Mensaje enviado al equipo</div>
-                  <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>El equipo responderá en horario de oficina. Puedes ver la respuesta en la pestaña <strong>Mensajes</strong>.</div>
-                </div>
-              )}
-              {m.cita && m.cita.tipo !== 'mensaje' && (
-                <div style={{ marginTop: '8px', background: 'rgba(109,200,109,0.08)', border: '0.5px solid rgba(109,200,109,0.3)', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', color: '#6dc86d', maxWidth: '80%' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '3px' }}>📞 Solicitud de llamada enviada</div>
-                  <div style={{ color: 'var(--text-2)', fontSize: '11px' }}>
-                    {m.cita.fecha ? `📅 ${new Date(m.cita.fecha + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}
-                    {m.cita.hora ? ` · ${m.cita.hora}` : ''}
-                    {!m.cita.fecha ? 'Recibirás una notificación cuando el equipo confirme la cita.' : ' · Te notificaremos la confirmación.'}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {iaLoading && iaStream && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ maxWidth: '80%', padding: '0.75rem 1rem', borderRadius: '14px 14px 14px 2px', fontSize: '13px', lineHeight: 1.7, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)' }}>
-                {iaStream}<span style={{ opacity: 0.4 }}>▌</span>
-              </div>
-            </div>
-          )}
-
-          {iaLoading && !iaStream && (
-            <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-              <div style={{ padding: '0.75rem 1rem', borderRadius: '14px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)' }}>
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  {[0, 1, 2].map(i => (
-                    <span key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#C9A043', opacity: 0.6, animation: `dot 1.2s ${i * 0.2}s infinite`, display: 'inline-block' }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={iaChatEndRef} />
-        </div>
-
-        {/* Input */}
-        <form
-          onSubmit={e => { e.preventDefault(); sendIa(iaInput) }}
-          style={{ padding: '0.85rem', borderTop: '0.5px solid var(--gold-border)', display: 'flex', gap: '0.5rem' }}
-        >
-          <input
-            value={iaInput}
-            onChange={e => setIaInput(e.target.value)}
-            disabled={iaLoading}
-            placeholder="Escribe tu pregunta…"
-            style={{ flex: 1, background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '10px', padding: '10px 14px', fontSize: '13px', color: 'var(--text-0)', outline: 'none', fontFamily: 'inherit' }}
-          />
-          <button
-            type="submit"
-            disabled={iaLoading || !iaInput.trim()}
-            style={{ background: 'linear-gradient(135deg,#C9A043,#a07828)', border: 'none', color: '#0a0a0a', width: '40px', height: '40px', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: 700, opacity: (iaLoading || !iaInput.trim()) ? 0.4 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-          >→</button>
-        </form>
-        <div style={{ padding: '0.4rem', textAlign: 'center', fontSize: '10px', color: 'rgba(255,255,255,0.15)' }}>
-          GrupoSkyLine IA · Powered by Claude
-        </div>
-      </div>
-      </div> {/* flex área chat */}
-    </div> {/* flex panel+chat */}
-    </div>
-  )
-
-  // ─── Plan gratuito: secciones bloqueadas ─────────────────
-  const esGratuito = cliente?.tipo_inversor === 'gratuito'
-  const BLOQUEADAS_GRATUITO = ['Referidos', 'Calendario', 'Asistente IA']
-
-  const tabBloqueado = (seccion: string) => (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px', textAlign: 'center', padding: '3rem 2rem' }}>
-      <div style={{ width: '76px', height: '76px', borderRadius: '50%', background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '30px', marginBottom: '1.5rem', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-        🔒
-      </div>
-      <h3 style={{ fontFamily: 'var(--font-cormorant), serif', fontSize: '1.6rem', fontWeight: 300, color: 'var(--text-0)', marginBottom: '0.75rem' }}>
-        {seccion}
-      </h3>
-      <p style={{ fontSize: '0.875rem', color: 'var(--text-3)', maxWidth: '360px', lineHeight: 1.75, marginBottom: '0.5rem' }}>
-        Esta sección no está disponible en el <strong style={{ color: 'var(--text-2)' }}>plan gratuito</strong>.
-        Actualiza a Crowdfunding o NPL para desbloquear todas las funcionalidades.
-      </p>
-      <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', marginBottom: '2rem' }}>
-        {seccion === 'Referidos' && 'Genera comisiones invitando a otros inversores a la plataforma.'}
-        {seccion === 'Calendario' && 'Gestiona vencimientos, llamadas y eventos de tus inversiones.'}
-        {seccion === 'Asistente IA' && 'IA entrenada con tus inversiones para resolver cualquier duda al instante.'}
-      </p>
-      <a href="mailto:info@gruposkyline.org?subject=Actualizar%20plan"
-        style={{ display: 'inline-block', padding: '12px 28px', borderRadius: '10px', background: 'linear-gradient(135deg,#C9A043,#a07828)', color: '#0a0a0a', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', textTransform: 'uppercase' }}>
-        Contactar para actualizar →
-      </a>
-    </div>
-  )
-
-  const TAB_CONTENT: Record<string, React.ReactNode> = {
-    'Dashboard': tabDashboard,
-    'Mis Inversiones': tabInversiones,
-    'Marketplace': tabMarketplace,
-    'Transacciones': tabTransacciones,
-    'Mensajes': tabMensajes,
-    'Referidos':    esGratuito ? tabBloqueado('Referidos')    : tabReferidos,
-    'Calendario':   esGratuito ? tabBloqueado('Calendario')   : tabCalendario,
-    'Asistente IA': esGratuito ? tabBloqueado('Asistente IA') : tabAsistenteIA,
-    'Perfil': tabPerfil,
-  }
-
-  // ─── Layout ───────────────────────────────────────────────
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-0)' }}>
-
-      {/* ── Modal confirmación de pago ── */}
-      {pagoConfirmado && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem' }}
-          onClick={() => setPagoConfirmado(null)}>
-          <div style={{ background: 'var(--bg-1)', border: '0.5px solid rgba(201,160,67,0.45)', borderRadius: '24px', padding: '2.5rem 2rem', maxWidth: '420px', width: '100%', textAlign: 'center', boxShadow: '0 32px 100px rgba(0,0,0,0.8)', animation: 'skylerIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}
-            onClick={e => e.stopPropagation()}>
-            {/* Icono check */}
-            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,#C9A043,#a07828)', margin: '0 auto 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(201,160,67,0.4)' }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-            </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--gold-100)', fontFamily: 'var(--font-cormorant)', marginBottom: '0.5rem' }}>¡Pago confirmado!</div>
-            <div style={{ fontSize: '14px', color: 'var(--text-2)', lineHeight: 1.7, marginBottom: '1.75rem' }}>
-              Tu reserva ha sido procesada con éxito.<br/>
-              El equipo de GrupoSkyLine revisará tu participación y recibirás una notificación cuando esté activa.
-            </div>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button onClick={() => setPagoConfirmado(null)} style={{ padding: '10px 24px', borderRadius: '12px', background: 'linear-gradient(135deg,#C9A043,#a07828)', border: 'none', color: '#0a0a0a', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}>
-                Ver mis inversiones
-              </button>
-              <button onClick={() => { setPagoConfirmado(null); setTab(i18n.myInvestments) }} style={{ padding: '10px 24px', borderRadius: '12px', background: 'var(--bg-3)', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)', fontSize: '14px', cursor: 'pointer' }}>
-                Ir a cartera
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Top nav */}
-      <nav style={{ borderBottom: '0.5px solid var(--gold-border)', background: 'var(--bg-0)', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '60px' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%', gap: '0.25rem' }}>
-            {TABS.map(t => {
-              const bloqueada = esGratuito && BLOQUEADAS_GRATUITO.includes(t)
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  title={bloqueada ? 'Disponible en planes de pago' : undefined}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '0 1rem', height: '100%', position: 'relative',
-                    fontSize: '0.82rem', letterSpacing: '0.02em',
-                    color: tab === t ? 'var(--text-0)' : bloqueada ? 'var(--text-3)' : 'var(--text-3)',
-                    opacity: bloqueada ? 0.55 : 1,
-                    fontWeight: tab === t ? 600 : 400,
-                    borderBottom: tab === t ? '2px solid var(--gold-200)' : '2px solid transparent',
-                    transition: 'all 0.15s',
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                  }}
-                >
-                  {t}
-                  {bloqueada && <span style={{ fontSize: '9px', opacity: 0.7 }}>🔒</span>}
-                  {t === 'Mensajes' && unreadMsgs > 0 && (
-                    <span style={{ position: 'absolute', top: '12px', right: '6px', background: 'var(--gold-200)', color: '#1a1506', borderRadius: '8px', fontSize: '8px', fontWeight: 700, padding: '1px 5px' }}>{unreadMsgs}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Right actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Bell */}
-            <div ref={bellRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => { setShowNotifs(v => !v); if (!showNotifs) markAllRead() }}
-                style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={unreadCount > 0 ? 'var(--gold-200)' : 'var(--text-2)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                {unreadCount > 0 && <span style={{ position: 'absolute', top: '6px', right: '6px', width: '7px', height: '7px', background: 'var(--gold-200)', borderRadius: '50%' }}/>}
-              </button>
-              {showNotifs && (
-                <div style={{ position: 'absolute', right: 0, top: '48px', width: '340px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '12px', boxShadow: '0 20px 60px rgba(0,0,0,0.6)', zIndex: 200 }}>
-                  <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.78rem', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-2)' }}>Notificaciones</span>
-                    {unreadCount > 0 && <span style={{ fontSize: '10px', color: 'var(--gold-200)' }}>{unreadCount} nuevas</span>}
-                  </div>
-                  {notifs.length === 0 ? (
-                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-3)', fontSize: '0.82rem' }}>Sin notificaciones</div>
-                  ) : (
-                    <div style={{ maxHeight: '360px', overflowY: 'auto' }}>
-                      {notifs.map(n => (
-                        <div key={n.id} style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid rgba(62,59,53,0.3)', background: n.leida ? 'transparent' : 'rgba(201,160,67,0.04)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
-                            <div style={{ fontSize: '0.82rem', fontWeight: 500, color: n.leida ? 'var(--text-2)' : 'var(--text-0)' }}>{n.titulo}</div>
-                            {!n.leida && <span style={{ width: '6px', height: '6px', background: 'var(--gold-200)', borderRadius: '50%', flexShrink: 0, marginTop: '5px' }}/>}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: '4px', lineHeight: 1.5 }}>{n.mensaje}</div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '6px' }}>{new Date(n.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* ── CALENDARIO WIDGET ── */}
-            <div ref={calWidgetRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => { setShowCalWidget(v => !v); setShowProfile(false); setShowNotifs(false) }}
-                title="Próximos eventos"
-                style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'border-color 0.2s' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={showCalWidget ? 'var(--gold-200)' : 'var(--text-2)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                {(() => {
-                  const hoy = new Date().toISOString().slice(0, 10)
-                  const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-                  const cnt = eventos.filter(ev => ev.fecha >= hoy && ev.fecha <= en7).length
-                  return cnt > 0 ? <span style={{ position: 'absolute', top: '5px', right: '5px', width: '8px', height: '8px', background: '#C9A043', borderRadius: '50%', fontSize: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a0a0a', fontWeight: 700 }} /> : null
-                })()}
-              </button>
-
-              {showCalWidget && (() => {
-                const hoy = new Date().toISOString().slice(0, 10)
-                const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-                const proximos = eventos.filter(ev => ev.fecha >= hoy).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, 5)
-                const TIPO_COLOR: Record<string, string> = { manual: '#C9A043', operacion: '#7c6fd4', vencimiento: '#e05656', pago: '#6dc86d', recordatorio: '#4da6d4' }
-                return (
-                  <div style={{ position: 'absolute', right: 0, top: '48px', width: '300px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.55)', zIndex: 200, overflow: 'hidden' }}>
-                    {/* Header */}
-                    <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '11px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: '2px' }}>Próximos eventos</div>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)' }}>
-                          {new Date().toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-                        </div>
-                      </div>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(201,160,67,0.08)', border: '0.5px solid var(--gold-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--gold-200)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Eventos */}
-                    <div style={{ padding: '0.5rem 0' }}>
-                      {proximos.length === 0 ? (
-                        <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-3)', fontSize: '12px' }}>Sin eventos próximos</div>
-                      ) : proximos.map(ev => {
-                        const fecha = new Date(ev.fecha + 'T00:00:00')
-                        const esHoy = ev.fecha === hoy
-                        const diff = Math.round((fecha.getTime() - new Date().setHours(0,0,0,0)) / 86400000)
-                        return (
-                          <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '0.6rem 1.25rem', borderBottom: '0.5px solid rgba(201,160,67,0.06)' }}>
-                            <div style={{ width: '3px', height: '36px', borderRadius: '2px', background: TIPO_COLOR[ev.tipo] ?? '#C9A043', flexShrink: 0 }} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-0)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.titulo}</div>
-                              <div style={{ fontSize: '10px', color: esHoy ? '#C9A043' : 'var(--text-3)', marginTop: '1px' }}>
-                                {esHoy ? 'Hoy' : diff === 1 ? 'Mañana' : `En ${diff} días`} · {fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Footer — ir al calendario */}
-                    <button
-                      onClick={() => { setTab('Calendario'); setShowCalWidget(false) }}
-                      style={{ width: '100%', padding: '0.85rem', background: 'rgba(201,160,67,0.05)', border: 'none', borderTop: '0.5px solid var(--gold-border)', color: 'var(--gold-200)', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                    >
-                      Ver calendario completo →
-                    </button>
-                  </div>
-                )
-              })()}
-            </div>
-
-            {/* ── AVATAR DROPDOWN ── */}
-            <div ref={profileRef} style={{ position: 'relative' }}>
-              <button
-                onClick={() => { setShowProfile(v => !v); setShowNotifs(false); setShowCalWidget(false) }}
-                style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,160,67,0.3) 0%, rgba(201,160,67,0.1) 100%)', border: showProfile ? '0.5px solid rgba(201,160,67,0.8)' : '0.5px solid rgba(201,160,67,0.4)', color: 'var(--gold-100)', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', letterSpacing: '0.04em', transition: 'border-color 0.2s' }}
-              >
-                {initials}
-              </button>
-
-              {showProfile && (
-                <div style={{ position: 'absolute', right: 0, top: '48px', width: '200px', background: 'var(--bg-1)', border: '0.5px solid var(--gold-border)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.55)', zIndex: 200, overflow: 'hidden' }}>
-                  {/* User info */}
-                  <div style={{ padding: '1rem 1.25rem', borderBottom: '0.5px solid var(--gold-border)' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, rgba(201,160,67,0.3), rgba(201,160,67,0.1))', border: '0.5px solid rgba(201,160,67,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold-100)', fontSize: '13px', fontWeight: 700, marginBottom: '8px' }}>{initials}</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-0)' }}>{cliente?.nombre} {cliente?.apellidos}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cliente?.email}</div>
-                  </div>
-                  {/* Options */}
-                  <div style={{ padding: '0.4rem 0' }}>
-                    <button
-                      onClick={() => { setTab(i18n.profile); setShowProfile(false) }}
-                      style={{ width: '100%', padding: '0.65rem 1.25rem', background: 'none', border: 'none', color: 'var(--text-1)', fontSize: '13px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,160,67,0.06)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-                      Mi perfil
-                    </button>
-                    <div style={{ margin: '0.3rem 1rem', height: '0.5px', background: 'var(--gold-border)' }} />
-                    <button
-                      onClick={() => { setShowProfile(false); handleLogout() }}
-                      style={{ width: '100%', padding: '0.65rem 1.25rem', background: 'none', border: 'none', color: '#e05656', fontSize: '13px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(224,86,86,0.06)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                      Cerrar sesión
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* ── BANNERS DE RECORDATORIO ── */}
-      {(() => {
-        const hoy = new Date().toISOString().slice(0, 10)
-        const en7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-        const citasReprog = misCitas.filter(c => c.estado === 'reprogramada')
-        const eventosProximos = eventos.filter(ev =>
-          ['recordatorio', 'operacion', 'pago'].includes(ev.tipo) && ev.fecha >= hoy && ev.fecha <= en7
-        ).sort((a, b) => a.fecha.localeCompare(b.fecha))
-
-        if (!citasReprog.length && !eventosProximos.length) return null
-
-        return (
-          <div style={{ borderBottom: '0.5px solid rgba(201,160,67,0.12)', background: 'var(--bg-1)' }}>
-            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem' }}>
-              {/* Llamadas confirmadas próximas */}
-              {eventosProximos.map(ev => {
-                const fecha = new Date(ev.fecha + 'T00:00:00')
-                const diff = Math.round((fecha.getTime() - new Date().setHours(0,0,0,0)) / 86400000)
-                const cuandoStr = diff === 0 ? 'hoy' : diff === 1 ? 'mañana' : `el ${fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}`
-                const META: Record<string, { emoji: string; label: string; color: string; bg: string; border: string }> = {
-                  recordatorio: { emoji: '📞', label: 'Llamada confirmada', color: '#4da6d4', bg: 'rgba(77,166,212,0.1)', border: 'rgba(77,166,212,0.35)' },
-                  operacion:    { emoji: '🏛️', label: 'Firma / Notaría',    color: '#a07cff', bg: 'rgba(160,124,255,0.1)', border: 'rgba(160,124,255,0.35)' },
-                  pago:         { emoji: '💶', label: 'Pago programado',    color: '#6dc86d', bg: 'rgba(109,200,109,0.1)', border: 'rgba(109,200,109,0.35)' },
-                }
-                const m = META[ev.tipo] ?? META.recordatorio
-                return (
-                  <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0', borderBottom: `0.5px solid ${m.border.replace('0.35', '0.08')}` }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: m.bg, border: `0.5px solid ${m.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>{m.emoji}</div>
-                    <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--text-1)' }}>
-                      <span style={{ color: m.color, fontWeight: 600 }}>{m.label}</span>
-                      {' — '}{ev.titulo.replace(/^(📞|🏛️|💶)\s*/, '')} <strong>{cuandoStr}</strong>
-                      {(ev as any).hora ? ` a las ${(ev as any).hora}` : ''}
-                    </div>
-                    <button
-                      onClick={() => setTab('Calendario')}
-                      style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: m.bg, border: `0.5px solid ${m.border}`, color: m.color }}
-                    >
-                      Ver calendario →
-                    </button>
-                  </div>
-                )
-              })}
-              {/* Citas pendientes de confirmar */}
-              {citasReprog.map(cita => (
-                <div key={cita.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0' }}>
-                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(201,160,67,0.12)', border: '0.5px solid rgba(201,160,67,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>📅</div>
-                  <div style={{ flex: 1, fontSize: '12.5px', color: 'var(--text-1)' }}>
-                    <span style={{ color: '#C9A043', fontWeight: 600 }}>Nueva propuesta de horario</span>
-                    {' — '}el equipo te propone una llamada
-                    {cita.fecha_confirmada ? ` el ${new Date(cita.fecha_confirmada + 'T00:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}${cita.hora_confirmada ? ` a las ${cita.hora_confirmada}` : ''}` : ''}
-                    . Confírmala o recházala.
-                  </div>
-                  <button
-                    onClick={() => setTab('Asistente IA')}
-                    style={{ flexShrink: 0, padding: '5px 14px', borderRadius: '7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', background: 'rgba(201,160,67,0.1)', border: '0.5px solid rgba(201,160,67,0.35)', color: '#C9A043' }}
-                  >
-                    Confirmar →
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2.5rem 2rem' }}>
-        {TAB_CONTENT[tab]}
-      </div>
-
-      {/* SKYLLER — asistente virtual flotante */}
-      {chatToken2 && <SkylerWidget token={chatToken2} />}
-
-      {/* Contact footer */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 2rem 3rem' }}>
-        <div style={{ padding: '1.5rem 2rem', border: '0.5px solid var(--gold-border)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '0.88rem', color: 'var(--text-1)', fontWeight: 600, marginBottom: '3px' }}>¿Tienes alguna consulta?</div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-3)' }}>Tu asesor personal de GrupoSkyLine está disponible para atenderte.</div>
-          </div>
-          <a href="mailto:info@gruposkyline.es" style={{ textDecoration: 'none', padding: '10px 24px', border: '0.5px solid var(--gold-border-strong)', color: 'var(--gold-200)', borderRadius: '8px', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Contactar →</a>
-        </div>
-      </div>
     </div>
   )
 }

@@ -3,72 +3,72 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import { cookies } from 'next/headers'
 
 export async function GET() {
-  // Auth check
   const cookieStore = await cookies()
   if (cookieStore.get('admin_session')?.value !== '1') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const since7d = new Date(Date.now() - 7 * 86400000).toISOString()
+  const since30d = new Date(Date.now() - 30 * 86400000).toISOString()
+
   const [
-    { data: clientes },
-    { data: parts },
-    { count: msgCount },
-    { count: convCount },
+    { count: totalUsers },
+    { count: newUsers7d },
+    { count: examenesHoy },
+    { count: totalExamenes },
+    { data: iaUso },
+    { data: topOposiciones },
+    { data: examenesSerie },
   ] = await Promise.all([
-    supabaseAdmin.from('clientes').select('id, estado, capital_inicial, created_at'),
-    supabaseAdmin.from('participaciones').select('id, estado, tipo, importe, rentabilidad_anual, created_at'),
-    supabaseAdmin.from('mensajes').select('id', { count: 'exact', head: true })
-      .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()),
-    supabaseAdmin.from('conversaciones').select('id', { count: 'exact', head: true }).eq('estado', 'activa'),
+    supabaseAdmin.from('perfiles').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('perfiles').select('id', { count: 'exact', head: true }).gte('created_at', since7d),
+    supabaseAdmin.from('examenes').select('id', { count: 'exact', head: true }).gte('created_at', new Date().toISOString().slice(0, 10)),
+    supabaseAdmin.from('examenes').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('ia_uso').select('tokens_entrada,tokens_salida,coste_estimado').gte('created_at', since30d),
+    supabaseAdmin.from('suscripciones_oposicion').select('oposicion_id,oposiciones(nombre_corto)').eq('activa', true),
+    supabaseAdmin.from('examenes').select('created_at,puntuacion').gte('created_at', since30d).eq('estado', 'completado').order('created_at'),
   ])
 
-  const cl = clientes ?? []
-  const pt = parts ?? []
+  // Coste IA total 30d
+  const costoIA = (iaUso ?? []).reduce((s: number, r: any) => s + (r.coste_estimado ?? 0), 0)
 
-  const aum = pt.filter((p: any) => p.estado === 'activa').reduce((s: number, p: any) => s + (p.importe ?? 0), 0)
-  const rentMedia = pt.length ? pt.reduce((s: number, p: any) => s + (p.rentabilidad_anual ?? 0), 0) / pt.length : 0
-  const capMedio = cl.length ? cl.reduce((s: number, c: any) => s + (c.capital_inicial ?? 0), 0) / cl.length : 0
+  // Top oposiciones por suscriptores
+  const oposCount: Record<string, { nombre: string; count: number }> = {}
+  for (const s of topOposiciones ?? []) {
+    const id = s.oposicion_id
+    if (!oposCount[id]) oposCount[id] = { nombre: (s.oposiciones as any)?.nombre_corto ?? id, count: 0 }
+    oposCount[id].count++
+  }
+  const topOpos = Object.values(oposCount).sort((a, b) => b.count - a.count).slice(0, 5)
 
-  // Serie últimos 6 meses
-  const meses = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - (5 - i))
-    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleString('es-ES', { month: 'short' }) }
+  // Serie últimos 7 días (nuevos usuarios)
+  const days7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i))
+    return d.toISOString().slice(0, 10)
   })
 
-  const serieClientes = meses.map(m => ({
-    label: m.label,
-    valor: cl.filter((c: any) => c.created_at?.startsWith(m.key)).length,
+  // Media puntuación por día (últimos 30d)
+  const puntuacionByDay: Record<string, number[]> = {}
+  for (const e of examenesSerie ?? []) {
+    const day = (e.created_at as string).slice(0, 10)
+    if (!puntuacionByDay[day]) puntuacionByDay[day] = []
+    if (e.puntuacion != null) puntuacionByDay[day].push(e.puntuacion)
+  }
+  const seriePuntuacion = Object.entries(puntuacionByDay).slice(-14).map(([day, vals]) => ({
+    label: day.slice(5),
+    valor: Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10,
   }))
-
-  const serieCapital = meses.map(m => ({
-    label: m.label,
-    valor: pt.filter((p: any) => p.created_at?.startsWith(m.key)).reduce((s: number, p: any) => s + (p.importe ?? 0), 0),
-  }))
-
-  const tipos: Record<string, number> = {}
-  pt.forEach((p: any) => { tipos[p.tipo] = (tipos[p.tipo] ?? 0) + (p.importe ?? 0) })
-  const distribTipo = Object.entries(tipos).map(([name, value]) => ({ name: name.toUpperCase(), value: Math.round(value as number) }))
-
-  const estados: Record<string, number> = {}
-  cl.forEach((c: any) => { estados[c.estado] = (estados[c.estado] ?? 0) + 1 })
-  const distribEstado = Object.entries(estados).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }))
 
   return NextResponse.json({
     kpi: {
-      aum,
-      totalClientes: cl.length,
-      clientesActivos: cl.filter((c: any) => c.estado === 'activo').length,
-      clientesLeads: cl.filter((c: any) => c.estado === 'lead').length,
-      totalParticipaciones: pt.length,
-      participacionesActivas: pt.filter((p: any) => p.estado === 'activa').length,
-      rentabilidadMedia: Math.round(rentMedia * 10) / 10,
-      capitalMedio: Math.round(capMedio),
-      mensajesSemana: msgCount ?? 0,
-      conversacionesActivas: convCount ?? 0,
+      totalUsers: totalUsers ?? 0,
+      newUsers7d: newUsers7d ?? 0,
+      totalExamenes: totalExamenes ?? 0,
+      examenesHoy: examenesHoy ?? 0,
+      costoIA30d: Math.round(costoIA * 10000) / 10000,
     },
-    serieClientes,
-    serieCapital,
-    distribTipo,
-    distribEstado,
+    topOposiciones: topOpos,
+    seriePuntuacion,
+    days7,
   })
 }
