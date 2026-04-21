@@ -19,6 +19,9 @@ export async function POST(req: NextRequest) {
   const titulo = formData.get('titulo') as string
   const categoria = formData.get('categoria') as string
   const convocatoria_id = formData.get('convocatoria_id') as string | null
+  const fuente_nombre = formData.get('fuente_nombre') as string | null
+  const fuente_url    = formData.get('fuente_url')    as string | null
+  const precio_aprox  = formData.get('precio_aprox')  as string | null
 
   if (!file || !titulo) {
     return NextResponse.json({ error: 'Faltan campos: file y titulo' }, { status: 400 })
@@ -55,8 +58,12 @@ export async function POST(req: NextRequest) {
     .insert({
       titulo,
       contenido_texto: textoExtraido,
-      categoria: categoria || null,
+      categoria:       categoria       || null,
       convocatoria_id: convocatoria_id || null,
+      fuente_nombre:   fuente_nombre   || null,
+      fuente_url:      fuente_url      || null,
+      precio_aprox:    precio_aprox    || null,
+      pdf_url:         fileName,
     })
     .select('id, titulo')
     .single()
