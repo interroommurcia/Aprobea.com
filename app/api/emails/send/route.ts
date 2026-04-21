@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/server'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM = process.env.RESEND_FROM!
+const getResend = () => new Resend(process.env.RESEND_API_KEY ?? 'placeholder')
+const FROM = () => process.env.RESEND_FROM ?? 'Aprobea <noreply@aprobea.com>'
 
 // Cron: procesa la cola de emails pendientes
 export async function POST(req: NextRequest) {
@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
     if (!html) continue
 
     try {
-      await resend.emails.send({
-        from: FROM,
+      await getResend().emails.send({
+        from: FROM(),
         to: profile.email,
         subject: EMAIL_SUBJECTS[item.tipo as keyof typeof EMAIL_SUBJECTS] ?? 'Aprobea',
         html,
