@@ -175,13 +175,13 @@ const plans = [
     excluded: ['IA Tutor con memoria', 'Exámenes adaptativos IRT', 'Plan de estudio IA'],
   },
   {
-    id: 'pro', name: 'Pro', price: '19,99€', period: '/ mes', sub: 'Cancela cuando quieras',
+    id: 'pro', name: 'Pro', price: '8,99€', period: '/ mes', sub: 'Cancela cuando quieras',
     cta: 'Empezar con Pro', href: '/login', featured: true,
     included: ['Preguntas ilimitadas', 'Todas las oposiciones', 'IA Tutor con memoria', 'Exámenes adaptativos IRT', 'Plan de estudio IA', 'Flashcards + Spaced Repetition', 'Analytics avanzado', 'BOE Radar completo + alertas'],
     excluded: [],
   },
   {
-    id: 'elite', name: 'Elite', price: '34,99€', period: '/ mes', sub: 'Para el opositor que va en serio',
+    id: 'elite', name: 'Elite', price: '12,99€', period: '/ mes', sub: 'Para el opositor que va en serio',
     cta: 'Empezar con Elite', href: '/login', featured: false,
     included: ['Todo lo de Pro', 'Predicción de temas por IA', 'Simulacros en condiciones reales', 'Examen oral con IA (voz)', 'Comunidad premium + ranking', 'Acceso anticipado a funciones', 'Soporte prioritario'],
     excluded: [],
@@ -384,7 +384,7 @@ export default function HomeClient() {
             La plataforma más avanzada de España para preparar oposiciones.{' '}
             <strong style={{ color: C.text0, fontWeight: 700 }}>20 preguntas gratis al día.</strong>{' '}
             Pro ilimitado por solo{' '}
-            <strong style={{ color: C.green, fontWeight: 700 }}>19,99 €/mes.</strong>
+            <strong style={{ color: C.green, fontWeight: 700 }}>8,99 €/mes.</strong>
           </motion.p>
 
           {/* CTAs */}

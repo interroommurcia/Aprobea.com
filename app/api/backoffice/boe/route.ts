@@ -50,9 +50,11 @@ async function scrapeBoE() {
   let m
   while ((m = rItems.exec(xml)) !== null) {
     const content = m[1]
-    const titulo  = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim()
+    const rawTitulo = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim() ?? ''
+    const titulo  = rawTitulo.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, '$1').trim()
     const urlItem = content.match(/<urlPdf[^>]*>([\s\S]*?)<\/urlPdf>/)?.[1]?.trim()
-    const id      = content.match(/<identificador>([\s\S]*?)<\/identificador>/)?.[1]?.trim()
+    // El ID está en el atributo del tag <item id="BOE-A-...">
+    const id      = m[0].match(/\bid="([^"]+)"/)?.[1]
     if (!titulo || !id) continue
 
     const tipoDetect = detectTipo(titulo)
@@ -79,7 +81,7 @@ function detectTipo(titulo: string): string {
   if (t.includes('bases') || t.includes('reglamento')) return 'bases'
   if (t.includes('resultado') || t.includes('aprobado') || t.includes('lista')) return 'resultado'
   if (t.includes('temario') || t.includes('programa')) return 'temario'
-  if (t.includes('rectificacion') || t.includes('correcciÃ³n')) return 'rectificacion'
+  if (t.includes('rectificacion') || t.includes('rectificación') || t.includes('corrección') || t.includes('correccion')) return 'rectificacion'
   return 'otro'
 }
 
@@ -98,7 +100,7 @@ async function notificarAlertas(items: any[]) {
         notifs.push({
           user_id: alerta.user_id,
           tipo: 'boe',
-          titulo: `ðŸ“¡ BOE: ${item.tipo === 'convocatoria' ? 'ðŸ”” Nueva convocatoria' : 'Nueva publicaciÃ³n'}`,
+          titulo: `📡 BOE: ${item.tipo === 'convocatoria' ? '🔔 Nueva convocatoria' : 'Nueva publicación'}`,
           mensaje: item.titulo,
           url: `/dashboard/boe-radar`,
           datos: { boe_id: item.boe_id, tipo: item.tipo },
