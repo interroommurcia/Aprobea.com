@@ -35,32 +35,36 @@ export async function POST(req: NextRequest) {
 
 async function scrapeBoE() {
   const hoy = new Date().toISOString().slice(0, 10)
-  const url = `https://www.boe.es/boe/dias/${hoy.replace(/-/g, '/')}/index.php?o=AGE_JUSTICIA`
+  const fechaStr = hoy.replace(/-/g, '')
 
-  // Llamamos a la API oficial del BOE (XML sumario)
-  const apiUrl = `https://www.boe.es/diario_boe/xml.php?id=BOE-S-${hoy.replace(/-/g, '')}`
-  const res = await fetch(apiUrl, { next: { revalidate: 0 } })
+  // API de datos abiertos del BOE (requiere Accept: application/xml)
+  const apiUrl = `https://www.boe.es/datosabiertos/api/boe/sumario/${fechaStr}`
+  const res = await fetch(apiUrl, {
+    headers: { Accept: 'application/xml', 'User-Agent': 'Aprobea/1.0' },
+    next: { revalidate: 0 },
+  })
   if (!res.ok) return 0
 
   const xml = await res.text()
 
-  // Extraer items del sumario con regex simple
+  // Verificar que el status es 200
+  const statusCode = xml.match(/<code>(\d+)<\/code>/)?.[1]
+  if (statusCode !== '200') return 0
+
+  // Extraer items: en esta API el ID está en <identificador> y el título en <titulo>
   const items: any[] = []
-  const rItems = /<item[^>]*>([\s\S]*?)<\/item>/g
+  const rItems = /<item>([\s\S]*?)<\/item>/g
   let m
   while ((m = rItems.exec(xml)) !== null) {
     const content = m[1]
-    const rawTitulo = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim() ?? ''
-    const titulo  = rawTitulo.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/, '$1').trim()
-    const urlItem = content.match(/<urlPdf[^>]*>([\s\S]*?)<\/urlPdf>/)?.[1]?.trim()
-    // El ID está en el atributo del tag <item id="BOE-A-...">
-    const id      = m[0].match(/\bid="([^"]+)"/)?.[1]
+    const id     = content.match(/<identificador>([\s\S]*?)<\/identificador>/)?.[1]?.trim()
+    const titulo = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim()
+    const urlPdf = content.match(/<url_pdf[^>]*>([\s\S]*?)<\/url_pdf>/)?.[1]?.trim()
     if (!titulo || !id) continue
 
-    const tipoDetect = detectTipo(titulo)
     items.push({
-      boe_id: id, titulo, url_pdf: urlItem ? `https://www.boe.es${urlItem}` : null,
-      tipo: tipoDetect, boe_fuente: 'estatal', fecha_publicacion: hoy, procesado: false,
+      boe_id: id, titulo, url_pdf: urlPdf ?? null,
+      tipo: detectTipo(titulo), boe_fuente: 'estatal', fecha_publicacion: hoy, procesado: false,
     })
   }
 
@@ -77,7 +81,7 @@ async function scrapeBoE() {
 
 function detectTipo(titulo: string): string {
   const t = titulo.toLowerCase()
-  if (t.includes('convocatoria') || t.includes('convocatÃ³rio')) return 'convocatoria'
+  if (t.includes('convocatoria') || t.includes('convocatorio')) return 'convocatoria'
   if (t.includes('bases') || t.includes('reglamento')) return 'bases'
   if (t.includes('resultado') || t.includes('aprobado') || t.includes('lista')) return 'resultado'
   if (t.includes('temario') || t.includes('programa')) return 'temario'
