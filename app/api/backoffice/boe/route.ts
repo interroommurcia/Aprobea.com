@@ -24,17 +24,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return Response.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Disparar scraping manual del BOE
+  const { fecha } = await req.json().catch(() => ({}))
   try {
-    const result = await scrapeBoE()
+    const result = await scrapeBoE(fecha)
     return Response.json({ ok: true, insertadas: result })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 })
   }
 }
 
-async function scrapeBoE() {
-  const hoy = new Date().toISOString().slice(0, 10)
+async function scrapeBoE(fechaOverride?: string) {
+  const hoy = fechaOverride ?? new Date().toISOString().slice(0, 10)
   const fechaStr = hoy.replace(/-/g, '')
 
   // API de datos abiertos del BOE (requiere Accept: application/xml)
