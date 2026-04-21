@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/boe/monitor",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/emails/send",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/churn",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}
