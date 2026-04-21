@@ -76,7 +76,7 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
               padding: isSub ? '0.45rem 1.5rem 0.45rem 2.5rem' : '0.65rem 1.5rem',
               fontSize: isSub ? '0.77rem' : '0.83rem', textDecoration: 'none',
               color: isActive ? 'var(--gold-100)' : isSub ? 'var(--text-3)' : 'var(--text-2)',
-              background: isActive ? 'rgba(201,160,67,0.08)' : 'transparent',
+              background: isActive ? 'rgba(29,158,117,0.08)' : 'transparent',
               borderLeft: isActive ? '2px solid var(--gold-200)' : '2px solid transparent',
               transition: 'all 0.2s', position: 'relative',
             }}>

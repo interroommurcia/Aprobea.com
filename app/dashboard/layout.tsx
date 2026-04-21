@@ -62,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               display: 'flex', alignItems: 'center', gap: '10px', padding: '0.65rem 1.5rem',
               fontSize: '0.83rem', textDecoration: 'none',
               color: isActive ? 'var(--gold-100)' : 'var(--text-2)',
-              background: isActive ? 'rgba(201,160,67,0.08)' : 'transparent',
+              background: isActive ? 'rgba(29,158,117,0.08)' : 'transparent',
               borderLeft: isActive ? '2px solid var(--gold-200)' : '2px solid transparent',
               transition: 'all 0.2s',
             }}>
@@ -75,7 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div style={{ padding: '1rem 1.5rem', borderTop: '0.5px solid var(--gold-border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {/* Perfil */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--gold-200),#8B6E2D)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#060709', fontWeight: 700, flexShrink: 0 }}>
+          <div style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--gold-200),#157A5A)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: '#060709', fontWeight: 700, flexShrink: 0 }}>
             {initials}
           </div>
           <div style={{ minWidth: 0 }}>
@@ -116,7 +116,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {notifCount > 0 && (
-              <div style={{ background: 'rgba(201,160,67,0.1)', border: '0.5px solid var(--gold-border)', borderRadius: '8px', padding: '4px 10px', fontSize: '11px', color: 'var(--gold-200)' }}>
+              <div style={{ background: 'rgba(29,158,117,0.1)', border: '0.5px solid var(--gold-border)', borderRadius: '8px', padding: '4px 10px', fontSize: '11px', color: 'var(--gold-200)' }}>
                 🔔 {notifCount}
               </div>
             )}

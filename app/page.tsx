@@ -33,7 +33,7 @@ export default function Home() {
         if (p.x < 0) p.x = canvas.width; if (p.x > canvas.width) p.x = 0
         if (p.y < 0) p.y = canvas.height; if (p.y > canvas.height) p.y = 0
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(201,160,67,${p.o})`; ctx.fill()
+        ctx.fillStyle = `rgba(29,158,117,${p.o})`; ctx.fill()
       })
       rafId = requestAnimationFrame(draw)
     }
@@ -93,9 +93,9 @@ export default function Home() {
         </a>
         <div className="nav-right">
           <a href="/login" className="btn-nav btn-nav-login">Iniciar sesión</a>
-          <button className="btn-nav" style={{ background: 'var(--gold-200)', color: '#000', fontWeight: 600, border: 'none', cursor: 'pointer' }} onClick={() => setOpenModal('registro')}>
+          <a href="/login" className="btn-nav" style={{ background: 'var(--gold-200)', color: '#000', fontWeight: 600, border: 'none' }}>
             Empezar gratis
-          </button>
+          </a>
         </div>
       </nav>
 
@@ -111,7 +111,7 @@ export default function Home() {
             La plataforma más avanzada para preparar oposiciones en España. IA que te corrige, aprende de tus fallos y te guía hasta el aprobado.
           </p>
           <div className="hero-ctas">
-            <button className="btn-primary" onClick={() => setOpenModal('registro')}>Empezar gratis →</button>
+            <a href="/login" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Empezar gratis →</a>
             <button className="btn-outline" onClick={() => document.getElementById('como-funciona')?.scrollIntoView({ behavior: 'smooth' })}>
               Ver cómo funciona
             </button>
@@ -199,7 +199,7 @@ export default function Home() {
 
           {/* Dashboard mockup */}
           <div className="reveal dash-mockup-wrap">
-            <div style={{ maxWidth: '960px', margin: '0 auto', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(201,160,67,0.2)', boxShadow: '0 40px 120px rgba(0,0,0,0.7)' }}>
+            <div style={{ maxWidth: '960px', margin: '0 auto', borderRadius: '14px', overflow: 'hidden', border: '1px solid rgba(29,158,117,0.2)', boxShadow: '0 40px 120px rgba(0,0,0,0.7)' }}>
               {/* Browser bar */}
               <div style={{ background: '#0d0f13', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -217,9 +217,9 @@ export default function Home() {
                     <span className="serif" style={{ fontSize: '1.1rem', color: 'var(--gold-100)', fontWeight: 300 }}>Aprobea</span>
                   </div>
                   {[['▦','Dashboard',true],['📚','Mis Oposiciones',false],['📝','Exámenes',false],['📊','Mi Progreso',false],['📡','BOE Radar',false],['📅','Plan de Estudio',false],['🃏','Flashcards',false]].map(([icon,label,active]) => (
-                    <div key={String(label)} style={{ padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', background: active ? 'rgba(201,160,67,0.08)' : 'transparent', borderLeft: active ? '2px solid #C9A043' : '2px solid transparent' }}>
+                    <div key={String(label)} style={{ padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '8px', background: active ? 'rgba(29,158,117,0.08)' : 'transparent', borderLeft: active ? '2px solid #1D9E75' : '2px solid transparent' }}>
                       <span style={{ fontSize: '11px', opacity: 0.7 }}>{icon}</span>
-                      <span style={{ fontSize: '10px', color: active ? '#C9A043' : 'rgba(255,255,255,0.35)', fontWeight: active ? 600 : 400 }}>{label as string}</span>
+                      <span style={{ fontSize: '10px', color: active ? '#1D9E75' : 'rgba(255,255,255,0.35)', fontWeight: active ? 600 : 400 }}>{label as string}</span>
                     </div>
                   ))}
                 </div>
@@ -227,7 +227,7 @@ export default function Home() {
                 <div style={{ flex: 1, padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto' }}>
                   {/* KPIs */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
-                    {[['87%','Acierto hoy','#4db87a'],['Tema 14','Próximo repaso','#C9A043'],['23 días','Racha activa','#e07a4d'],['Pos. #47','Ranking semana','#4d9fd4']].map(([v,l,c]) => (
+                    {[['87%','Acierto hoy','#4db87a'],['Tema 14','Próximo repaso','#1D9E75'],['23 días','Racha activa','#e07a4d'],['Pos. #47','Ranking semana','#4d9fd4']].map(([v,l,c]) => (
                       <div key={String(l)} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '10px' }}>
                         <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>{l as string}</div>
                         <div style={{ fontSize: '14px', fontWeight: 700, color: c as string }}>{v as string}</div>
@@ -236,16 +236,16 @@ export default function Home() {
                   </div>
                   {/* Temas heat map */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px' }}>
-                    <div style={{ fontSize: '9px', color: 'rgba(201,160,67,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '10px' }}>Dominio por temas · Administrativo General</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(29,158,117,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '10px' }}>Dominio por temas · Administrativo General</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {[92,88,45,71,33,95,12,67,78,54,88,23,91,44,82,60,15,73,89,51].map((pct, i) => (
-                        <div key={i} title={`Tema ${i+1}: ${pct}%`} style={{ width: '24px', height: '24px', borderRadius: '4px', background: pct > 80 ? 'rgba(77,184,122,0.7)' : pct > 60 ? 'rgba(201,160,67,0.6)' : pct > 30 ? 'rgba(224,122,77,0.6)' : 'rgba(200,60,60,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+                        <div key={i} title={`Tema ${i+1}: ${pct}%`} style={{ width: '24px', height: '24px', borderRadius: '4px', background: pct > 80 ? 'rgba(77,184,122,0.7)' : pct > 60 ? 'rgba(29,158,117,0.6)' : pct > 30 ? 'rgba(224,122,77,0.6)' : 'rgba(200,60,60,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
                           {i+1}
                         </div>
                       ))}
                     </div>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                      {[['#4db87a40','Dominado'],['rgba(201,160,67,0.6)','En progreso'],['rgba(224,122,77,0.6)','Débil'],['rgba(200,60,60,0.5)','Sin iniciar']].map(([c,l]) => (
+                      {[['#4db87a40','Dominado'],['rgba(29,158,117,0.6)','En progreso'],['rgba(224,122,77,0.6)','Débil'],['rgba(200,60,60,0.5)','Sin iniciar']].map(([c,l]) => (
                         <div key={String(l)} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: c as string }} />
                           <span style={{ fontSize: '8px', color: 'rgba(255,255,255,0.3)' }}>{l as string}</span>
@@ -255,8 +255,8 @@ export default function Home() {
                   </div>
                   {/* Últimos exámenes */}
                   <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '12px' }}>
-                    <div style={{ fontSize: '9px', color: 'rgba(201,160,67,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>Últimos exámenes</div>
-                    {[['Simulacro Admvo. Gral — Bloque I','25/06/2025','87%','#4db87a'],['Repaso fallos — Temas 3,7,14','24/06/2025','71%','#C9A043'],['Test adaptativo — Constitución Española','23/06/2025','58%','#e07a4d']].map(([n,d,p,c]) => (
+                    <div style={{ fontSize: '9px', color: 'rgba(29,158,117,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '8px' }}>Últimos exámenes</div>
+                    {[['Simulacro Admvo. Gral — Bloque I','25/06/2025','87%','#4db87a'],['Repaso fallos — Temas 3,7,14','24/06/2025','71%','#1D9E75'],['Test adaptativo — Constitución Española','23/06/2025','58%','#e07a4d']].map(([n,d,p,c]) => (
                       <div key={String(n)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                         <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: c as string, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
@@ -323,12 +323,12 @@ export default function Home() {
             </div>
             {[
               { tipo: 'convocatoria', titulo: 'Convocatoria 45 plazas Cuerpo Técnico AGE', fuente: 'BOE', fecha: 'Hace 2h', color: '#4db87a' },
-              { tipo: 'bases', titulo: 'Bases específicas — Policía Local Murcia', fuente: 'BORM', fecha: 'Hace 5h', color: '#C9A043' },
+              { tipo: 'bases', titulo: 'Bases específicas — Policía Local Murcia', fuente: 'BORM', fecha: 'Hace 5h', color: '#1D9E75' },
               { tipo: 'resultado', titulo: 'Relación aprobados OPE Enfermería SERMAS', fuente: 'BOCM', fecha: 'Ayer', color: '#4d9fd4' },
               { tipo: 'temario', titulo: 'Actualización temario auxiliar administrativo AGE', fuente: 'BOE', fecha: 'Ayer', color: '#e07a4d' },
               { tipo: 'convocatoria', titulo: 'OPE extraordinaria 120 plazas Mossos d\'Esquadra', fuente: 'DOGC', fecha: '2 días', color: '#4db87a' },
             ].map((item, i) => (
-              <div key={i} style={{ display: 'flex', gap: '12px', padding: '0.75rem 0', borderBottom: i < 4 ? '0.5px solid rgba(201,160,67,0.08)' : 'none' }}>
+              <div key={i} style={{ display: 'flex', gap: '12px', padding: '0.75rem 0', borderBottom: i < 4 ? '0.5px solid rgba(29,158,117,0.08)' : 'none' }}>
                 <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, flexShrink: 0, marginTop: '5px' }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-1)', fontWeight: 500, lineHeight: 1.4, marginBottom: '3px' }}>{item.titulo}</div>
@@ -340,7 +340,7 @@ export default function Home() {
                 </div>
               </div>
             ))}
-            <button style={{ width: '100%', marginTop: '1rem', padding: '10px', background: 'rgba(201,160,67,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', color: 'var(--gold-200)', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            <button style={{ width: '100%', marginTop: '1rem', padding: '10px', background: 'rgba(29,158,117,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', color: 'var(--gold-200)', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>
               Ver todas las publicaciones →
             </button>
           </div>
@@ -373,9 +373,9 @@ export default function Home() {
                 <li style={{ opacity: 0.35, textDecoration: 'line-through' }}>Exámenes adaptativos IRT</li>
                 <li style={{ opacity: 0.35, textDecoration: 'line-through' }}>Plan de estudio IA</li>
               </ul>
-              <button className="btn-register" style={{ display: 'block', width: '100%', textAlign: 'center', background: 'transparent', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)', fontSize: '0.82rem', letterSpacing: '0.06em', padding: '14px', borderRadius: '10px', cursor: 'pointer' }} onClick={() => setOpenModal('registro')}>
+              <a href="/login" className="btn-register" style={{ display: 'block', width: '100%', textAlign: 'center', background: 'transparent', border: '0.5px solid var(--gold-border)', color: 'var(--text-1)', fontSize: '0.82rem', letterSpacing: '0.06em', padding: '14px', borderRadius: '10px', textDecoration: 'none' }}>
                 Crear cuenta gratis →
-              </button>
+              </a>
             </div>
 
             {/* PRO */}
@@ -383,7 +383,7 @@ export default function Home() {
               <span className="reg-badge">Pro · Más popular</span>
               <h3 className="reg-title serif">Pro</h3>
               <p className="reg-desc">Todo lo que necesitas para preparar tu oposición de forma profesional con IA a tu lado.</p>
-              <div style={{ background: 'rgba(201,160,67,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '1rem', margin: '1rem 0' }}>
+              <div style={{ background: 'rgba(29,158,117,0.06)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '1rem', margin: '1rem 0' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '3px' }}>
                   <span className="serif" style={{ fontSize: '2rem', fontWeight: 300, color: 'var(--gold-100)' }}>19,99€</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>/ mes</span>
@@ -400,9 +400,9 @@ export default function Home() {
                 <li>Flashcards + Spaced Repetition</li>
                 <li>Analytics avanzado</li>
               </ul>
-              <button className="btn-register btn-register-gold" onClick={() => setOpenModal('registro')}>
+              <a href="/login" className="btn-register btn-register-gold" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
                 Empezar con Pro →
-              </button>
+              </a>
             </div>
 
             {/* ELITE */}
@@ -426,9 +426,9 @@ export default function Home() {
                 <li>Acceso anticipado a funciones</li>
                 <li>Soporte prioritario</li>
               </ul>
-              <button className="btn-register btn-register-outline" onClick={() => setOpenModal('registro')}>
+              <a href="/login" className="btn-register btn-register-outline" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
                 Empezar con Elite →
-              </button>
+              </a>
             </div>
           </div>
         </div>
@@ -468,9 +468,9 @@ export default function Home() {
           <h2 className="section-h2 serif reveal">Tu siguiente paso<br />hacia el <em>aprobado.</em></h2>
           <p className="section-intro reveal">Únete a más de 12.000 opositores que ya estudian con IA. Sin compromisos, sin tarjeta de crédito.</p>
           <div className="reveal" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '2.5rem' }}>
-            <button className="btn-primary" style={{ fontSize: '1rem', padding: '16px 40px' }} onClick={() => setOpenModal('registro')}>
+            <a href="/login" className="btn-primary" style={{ fontSize: '1rem', padding: '16px 40px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
               Crear cuenta gratuita →
-            </button>
+            </a>
             <a href="/login" className="btn-outline" style={{ fontSize: '1rem', padding: '16px 40px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
               Ya tengo cuenta
             </a>
