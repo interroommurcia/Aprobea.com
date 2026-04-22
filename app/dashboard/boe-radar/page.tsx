@@ -18,7 +18,7 @@ export default function BoeRadarPage() {
       if (!data.user) return
       const uid = data.user.id; setUid(uid)
       const [{ data: pubs }, { data: alts }, { data: ops }] = await Promise.all([
-        supabase.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false }).limit(200),
+        supabase.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false }),
         supabase.from('alertas_boe').select('*,oposiciones(nombre_corto)').eq('user_id', uid),
         supabase.from('suscripciones_oposicion').select('oposiciones(id,nombre,nombre_corto)').eq('user_id', uid).eq('activa', true),
       ])

@@ -12,7 +12,7 @@ export default function BackofficeBoe() {
 
   function load() {
     setLoading(true)
-    fetch('/api/backoffice/boe?limit=100').then(r => r.ok ? r.json() : { items: [] }).then(d => { setPubs(Array.isArray(d.items) ? d.items : []); setLoading(false) })
+    fetch('/api/backoffice/boe').then(r => r.ok ? r.json() : { items: [] }).then(d => { setPubs(Array.isArray(d.items) ? d.items : []); setLoading(false) })
   }
 
   useEffect(() => { load() }, [])

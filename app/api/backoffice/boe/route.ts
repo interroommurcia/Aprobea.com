@@ -10,14 +10,13 @@ export async function GET(req: NextRequest) {
   if (!isAdmin(req)) return Response.json({ error: 'No autorizado' }, { status: 401 })
 
   const pendiente = req.nextUrl.searchParams.get('pendiente')
-  const limit     = parseInt(req.nextUrl.searchParams.get('limit') ?? '20')
 
   if (pendiente) {
     const { count } = await sb.from('boe_publicaciones').select('*', { count: 'exact', head: true }).eq('procesado', false)
     return Response.json({ count: count ?? 0 })
   }
 
-  const { data, error } = await sb.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false }).limit(limit)
+  const { data, error } = await sb.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false })
   if (error) return Response.json({ error: error.message }, { status: 500 })
   return Response.json({ items: data ?? [] })
 }
