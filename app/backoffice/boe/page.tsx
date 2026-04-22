@@ -5,10 +5,14 @@ import { useEffect, useState } from 'react'
 type Pub = { id: string; titulo: string; tipo: string; boe_fuente: string; fecha_publicacion: string; url_pdf: string; resumen_ia: string; procesado: boolean; relevancia: number }
 
 export default function BackofficeBoe() {
-  const [pubs, setPubs]         = useState<Pub[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [scraping, setScraping] = useState(false)
-  const [filtroTipo, setFiltro] = useState('todos')
+  const hoyISO = new Date().toISOString().slice(0, 10)
+
+  const [pubs, setPubs]           = useState<Pub[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [scraping, setScraping]   = useState(false)
+  const [filtroTipo, setFiltro]   = useState('todos')
+  const [filtroFecha, setFiltroFecha] = useState('')          // filtro visual de la tabla
+  const [fechaScraping, setFechaScraping] = useState(hoyISO) // fecha para el scraping manual
 
   function load() {
     setLoading(true)
@@ -19,9 +23,11 @@ export default function BackofficeBoe() {
 
   async function ejecutarScraping() {
     setScraping(true)
-    const res = await fetch('/api/backoffice/boe', { method: 'POST' })
+    const body: Record<string, string> = {}
+    if (fechaScraping) body.fecha = fechaScraping
+    const res = await fetch('/api/backoffice/boe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const data = await res.json()
-    alert(`Scraping completado: ${data.insertadas ?? 0} nuevas publicaciones insertadas`)
+    alert(`Scraping completado (${fechaScraping}): ${data.insertadas ?? 0} nuevas publicaciones insertadas`)
     setScraping(false); load()
   }
 
@@ -31,7 +37,9 @@ export default function BackofficeBoe() {
   }
 
   const tipoColor: Record<string, string> = { convocatoria: '#4db87a', bases: 'var(--gold-100)', resultado: '#4d9fd4', temario: '#e07a4d', rectificacion: '#e05', otro: 'var(--text-3)' }
-  const filtradas = filtroTipo === 'todos' ? pubs : pubs.filter(p => p.tipo === filtroTipo)
+  const filtradas = pubs
+    .filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
+    .filter(p => !filtroFecha || p.fecha_publicacion === filtroFecha)
 
   return (
     <div style={{ padding: '2.5rem 3rem' }}>
@@ -40,9 +48,18 @@ export default function BackofficeBoe() {
           <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.4rem' }}>Monitoreo automático</div>
           <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)' }}>BOE Radar</h1>
         </div>
-        <button onClick={ejecutarScraping} disabled={scraping} style={{ background: scraping ? 'rgba(77,159,212,0.1)' : '#4d9fd4', color: scraping ? '#4d9fd4' : '#fff', border: `0.5px solid ${scraping ? 'rgba(77,159,212,0.4)' : '#4d9fd4'}`, borderRadius: 'var(--radius)', padding: '10px 20px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: scraping ? 0.7 : 1 }}>
-          {scraping ? '⏳ Scrapeando BOE…' : '📡 Ejecutar scraping ahora'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <input
+            type="date"
+            value={fechaScraping}
+            max={hoyISO}
+            onChange={e => setFechaScraping(e.target.value)}
+            style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '9px 12px', color: 'var(--text-0)', fontSize: '13px', cursor: 'pointer' }}
+          />
+          <button onClick={ejecutarScraping} disabled={scraping || !fechaScraping} style={{ background: scraping ? 'rgba(77,159,212,0.1)' : '#4d9fd4', color: scraping ? '#4d9fd4' : '#fff', border: `0.5px solid ${scraping ? 'rgba(77,159,212,0.4)' : '#4d9fd4'}`, borderRadius: 'var(--radius)', padding: '9px 20px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: scraping ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+            {scraping ? '⏳ Scrapeando…' : '📡 Ejecutar scraping'}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -61,12 +78,26 @@ export default function BackofficeBoe() {
       </div>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {['todos','convocatoria','bases','resultado','temario','rectificacion','otro'].map(t => (
           <button key={t} onClick={() => setFiltro(t)} style={{ padding: '5px 12px', background: filtroTipo === t ? 'rgba(201,160,67,0.1)' : 'transparent', border: `0.5px solid ${filtroTipo === t ? 'var(--gold-200)' : 'rgba(255,255,255,0.08)'}`, color: filtroTipo === t ? 'var(--gold-100)' : 'var(--text-3)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', textTransform: 'capitalize' }}>
             {t === 'todos' ? 'Todos' : t}
           </button>
         ))}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <input
+            type="date"
+            value={filtroFecha}
+            max={hoyISO}
+            onChange={e => setFiltroFecha(e.target.value)}
+            style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: '8px', padding: '4px 10px', color: 'var(--text-0)', fontSize: '11px', cursor: 'pointer' }}
+          />
+          {filtroFecha && (
+            <button onClick={() => setFiltroFecha('')} style={{ fontSize: '11px', color: 'var(--text-3)', background: 'transparent', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer' }}>
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
