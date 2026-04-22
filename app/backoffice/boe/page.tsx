@@ -10,6 +10,7 @@ export default function BackofficeBoe() {
   const [pubs, setPubs]           = useState<Pub[]>([])
   const [loading, setLoading]     = useState(true)
   const [scraping, setScraping]   = useState(false)
+  const [vaciando, setVaciando]   = useState(false)
   const [filtroTipo, setFiltro]   = useState('todos')
   const [filtroFecha, setFiltroFecha] = useState('')          // filtro visual de la tabla
   const [fechaScraping, setFechaScraping] = useState(hoyISO) // fecha para el scraping manual
@@ -31,6 +32,22 @@ export default function BackofficeBoe() {
     setScraping(false); load()
   }
 
+  async function vaciarYRescraping() {
+    if (!confirm(`¿Borrar TODAS las publicaciones BOE y volver a scrapear ${fechaScraping}?\nEsta acción no se puede deshacer.`)) return
+    setVaciando(true)
+    await fetch('/api/backoffice/boe', { method: 'DELETE' })
+    setPubs([])
+    setVaciando(false)
+    // Rescraping inmediato con la fecha seleccionada
+    setScraping(true)
+    const body: Record<string, string> = {}
+    if (fechaScraping) body.fecha = fechaScraping
+    const res = await fetch('/api/backoffice/boe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json()
+    alert(`BD vaciada y rescrapeada (${fechaScraping}): ${data.insertadas ?? 0} publicaciones relevantes insertadas`)
+    setScraping(false); load()
+  }
+
   async function marcarProcesado(id: string) {
     await fetch('/api/backoffice/boe/procesar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     setPubs(prev => prev.map(p => p.id === id ? { ...p, procesado: true } : p))
@@ -48,7 +65,7 @@ export default function BackofficeBoe() {
           <div style={{ fontSize: '11px', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold-200)', marginBottom: '0.4rem' }}>Monitoreo automático</div>
           <h1 className="serif" style={{ fontSize: '2.2rem', fontWeight: 300, color: 'var(--text-0)' }}>BOE Radar</h1>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <input
             type="date"
             value={fechaScraping}
@@ -56,8 +73,13 @@ export default function BackofficeBoe() {
             onChange={e => setFechaScraping(e.target.value)}
             style={{ background: 'var(--bg-2)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '9px 12px', color: 'var(--text-0)', fontSize: '13px', cursor: 'pointer' }}
           />
-          <button onClick={ejecutarScraping} disabled={scraping || !fechaScraping} style={{ background: scraping ? 'rgba(77,159,212,0.1)' : '#4d9fd4', color: scraping ? '#4d9fd4' : '#fff', border: `0.5px solid ${scraping ? 'rgba(77,159,212,0.4)' : '#4d9fd4'}`, borderRadius: 'var(--radius)', padding: '9px 20px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: scraping ? 0.7 : 1, whiteSpace: 'nowrap' }}>
+          <button onClick={ejecutarScraping} disabled={scraping || vaciando || !fechaScraping}
+            style={{ background: scraping ? 'rgba(77,159,212,0.1)' : '#4d9fd4', color: scraping ? '#4d9fd4' : '#fff', border: `0.5px solid ${scraping ? 'rgba(77,159,212,0.4)' : '#4d9fd4'}`, borderRadius: 'var(--radius)', padding: '9px 20px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: (scraping || vaciando) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
             {scraping ? '⏳ Scrapeando…' : '📡 Ejecutar scraping'}
+          </button>
+          <button onClick={vaciarYRescraping} disabled={scraping || vaciando}
+            style={{ background: 'rgba(224,0,85,0.08)', color: '#e05', border: '0.5px solid rgba(224,0,85,0.25)', borderRadius: 'var(--radius)', padding: '9px 16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: (scraping || vaciando) ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+            {vaciando ? '🗑 Vaciando…' : '🗑 Vaciar BD y rescraping'}
           </button>
         </div>
       </div>

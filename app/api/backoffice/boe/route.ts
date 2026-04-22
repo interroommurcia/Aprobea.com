@@ -34,3 +34,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** DELETE /api/backoffice/boe — Vacía toda la tabla boe_publicaciones */
+export async function DELETE(req: NextRequest) {
+  if (!isAdmin(req)) return Response.json({ error: 'No autorizado' }, { status: 401 })
+  const { error } = await sb.from('boe_publicaciones').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+  return Response.json({ ok: true })
+}
+
