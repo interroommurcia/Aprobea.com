@@ -20,14 +20,22 @@ export async function scrapeBoE(fechaOverride?: string, debug = false): Promise<
   let m
   while ((m = rItems.exec(xml)) !== null) {
     const content = m[1]
-    const id     = content.match(/<identificador>([\s\S]*?)<\/identificador>/)?.[1]?.trim()
-    const titulo = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim()
-    const urlPdf = content.match(/<url_pdf[^>]*>([\s\S]*?)<\/url_pdf>/)?.[1]?.trim()
+    const id        = content.match(/<identificador>([\s\S]*?)<\/identificador>/)?.[1]?.trim()
+    const titulo    = content.match(/<titulo>([\s\S]*?)<\/titulo>/)?.[1]?.trim()
+    const urlPdf    = content.match(/<url_pdf[^>]*>([\s\S]*?)<\/url_pdf>/)?.[1]?.trim()
+    const organismo = content.match(/<departamento>([\s\S]*?)<\/departamento>/)?.[1]?.trim() ?? null
     if (!titulo || !id) continue
 
     items.push({
-      boe_id: id, titulo, url_pdf: urlPdf ?? null, boletin: 'BOE',
+      boe_id: id, titulo, url_pdf: urlPdf ?? null,
       tipo: detectTipo(titulo), fecha_publicacion: hoy, procesado: false,
+      comunidad: 'estatal',
+      organismo,
+      departamento: organismo,
+      num_plazas: detectPlazas(titulo),
+      grupo: detectGrupo(titulo),
+      anio_convocatoria: detectAnio(titulo, hoy),
+      vigente: true,
     })
   }
 
@@ -39,6 +47,21 @@ export async function scrapeBoE(fechaOverride?: string, debug = false): Promise<
 
   await notificarAlertas(items)
   return items.length
+}
+
+function detectPlazas(titulo: string): number | null {
+  const m = titulo.match(/\b(\d{1,4})\s*plazas?\b/i)
+  return m ? parseInt(m[1]) : null
+}
+
+function detectGrupo(titulo: string): string | null {
+  const m = titulo.match(/\b(subgrupo\s+)?(A1|A2|B|C1|C2)\b/i)
+  return m ? m[2].toUpperCase() : null
+}
+
+function detectAnio(titulo: string, hoy: string): number | null {
+  const m = titulo.match(/\b(20\d{2})\b/)
+  return m ? parseInt(m[1]) : parseInt(hoy.slice(0, 4))
 }
 
 function detectTipo(titulo: string): string {
