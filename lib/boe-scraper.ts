@@ -2,54 +2,105 @@ import { supabaseAdmin as sb } from '@/lib/supabase-admin'
 
 // ---------------------------------------------------------------------------
 // Filtro de relevancia: solo guardamos lo que interesa al opositor
+// Usamos STEMS (raíces) para capturar singular y plural en español
 // ---------------------------------------------------------------------------
+
+// Si el título contiene alguna de estas → descartar siempre
 const EXCLUSION_KW = [
-  'subvenci', 'ayuda económica', 'ayudas económicas', 'beca', 'becas',
-  'prestación económica', 'subsidio', 'incentivo económico', 'bonificaci',
-  'financiaci', 'licitaci', 'adjudicaci', 'contrato de suministro',
-  'contrato de servicio', 'concesión de ayuda', 'concesión de subvenci',
-  'resolución de concesión', 'fondo europeo', 'fondo social',
+  'subvenci',            // subvención, subvenciones
+  'ayuda económic',      // ayuda económica/s
+  'ayudas económic',
+  'concesión de ayuda',
+  'concesión de subvenci',
+  'resolución de concesión',
+  'beca', 'becas',
+  'prestación económic',
+  'subsidio',
+  'incentivo económic',
+  'bonificaci',          // bonificación
+  'financiaci',          // financiación
+  'licitaci',            // licitación, licitaciones
+  'adjudicaci',          // adjudicación
+  'contrato de suministro',
+  'contrato de servicio',
+  'fondo europeo',
+  'fondo social',
+  'tarifa',
+  'arancel',
+  'precio público',
+  'tasa ',               // tasa fiscal (con espacio para no confundir con 'tasas de oposición')
 ]
 
+// Si el título contiene alguna de estas → INCLUIR (siempre que no esté en EXCLUSION)
+// Stems truncados antes de desinencias para capturar singular/plural/género
 const OPOSICION_KW = [
-  'oposici', 'proceso selectivo', 'proceso de selección', 'prueba selectiva',
-  'convocatoria de plazas', 'convocatoria de ingreso', 'convocatoria libre',
-  'cuerpo de', 'escala de', 'subescala de',
-  'funcionario', 'funcionaria', 'interino', 'interina',
-  'plazas de', 'plaza de', 'libre designaci', 'concurso de méritos',
-  'concurso-oposici', 'concurso oposici',
-  'bases de la convocatoria', 'tribunal calificador', 'tribunal de selecci',
-  'temario', 'programa de materias', 'lista de admitidos',
-  'lista provisional de aprobados', 'lista definitiva de aprobados',
-  'aprobados', 'relación de aprobados',
-  'ingreso al cuerpo', 'acceso al cuerpo', 'turno libre',
-  'actas del tribunal', 'nota de corte', 'puntuación definitiva',
-  'resolución de convocatoria', 'resolución de la convocatoria',
-  'ejercicio práctico', 'primer ejercicio', 'segundo ejercicio',
-  'examen', 'prueba teórica', 'prueba práctica',
+  'oposici',             // oposición, oposiciones, opositor
+  'selectiv',            // selectiva, selectivas, selectivo, selectivos → "pruebas selectivas"
+  'convocatori',         // convocatoria, convocatorias → "se convocan" NO, pero "convocatoria" SÍ
+  'convocan',            // "se convocan pruebas", "se convocan plazas"
+  'proceso de selección',
+  'procesos de selección',
+  'cuerpo de ',          // Cuerpo de Gestión, Cuerpo de Técnicos
+  'escala de ',          // Escala de Administración
+  'subescala de ',
+  'funcionari',          // funcionario/a/os/as
+  'interino',
+  'interina',
+  'libre designaci',
+  'concurso de mérito',  // concurso de méritos (con y sin tilde)
+  'concurso de merito',
+  'concurso-oposici',
+  'concurso oposici',
+  'tribunal calificador',
+  'tribunal de selecci',
+  'tribunal de oposici',
+  'bases de la convocatori',
+  'bases reguladoras.*oposici',  // se evalúa como includes, no regex, pero útil
+  'temario',
+  'programa de materias',
+  'lista de admitido',   // lista de admitidos/as
+  'lista provisional',
+  'lista definitiva',
+  'aprobado',            // aprobado, aprobados, aprobadas
+  'relación de aprobado',
+  'ingreso al cuerpo',
+  'acceso al cuerpo',
+  'turno libre',
+  'actas del tribunal',
+  'nota de corte',
+  'puntuación definitiva',
+  'puntuacion definitiva',
+  'ejercicio práctico',
+  'ejercicio practico',
+  'primer ejercicio',
+  'segundo ejercicio',
+  'tercer ejercicio',
+  'plazas de acceso',
+  'plazas de ingreso',
+  'plazas convocada',    // plazas convocadas
+  'plazas ofertada',     // plazas ofertadas
+  'personal funcionari',
+  'personal laboral',
+  'acceso libre',
+  'promoción interna',
+  'promocion interna',
+  'oferta de empleo público',
+  'oferta de empleo publico',
+  'oferta de empleo',
 ]
 
 function esRelevanteParaOpositor(titulo: string): boolean {
   const t = titulo.toLowerCase()
 
-  // Excluir explícitamente subvenciones y similares
+  // 1. Excluir siempre si es sobre subvenciones/ayudas/licitaciones
   if (EXCLUSION_KW.some(kw => t.includes(kw))) return false
 
+  // 2. Incluir si contiene cualquier keyword de oposición (stem)
+  if (OPOSICION_KW.some(kw => t.includes(kw))) return true
+
+  // 3. detectTipo como último recurso para tipos claramente relevantes
   const tipo = detectTipo(titulo)
-
-  // Rectificaciones: solo si también mencionan algo de oposiciones
-  if (tipo === 'rectificacion') {
-    return OPOSICION_KW.some(kw => t.includes(kw))
-  }
-
-  // Para "otro": solo si tiene keyword de oposición explícito
-  if (tipo === 'otro') {
-    return OPOSICION_KW.some(kw => t.includes(kw))
-  }
-
-  // convocatoria, bases, resultado, temario → relevantes por definición,
-  // pero verificamos que no sean de subvenciones (ya filtrado arriba)
-  return true
+  return tipo === 'temario' || tipo === 'bases'
 }
 
 // ---------------------------------------------------------------------------
@@ -130,11 +181,13 @@ function detectAnio(titulo: string, hoy: string): number | null {
 
 function detectTipo(titulo: string): string {
   const t = titulo.toLowerCase()
-  if (t.includes('convocatoria') || t.includes('convocatorio')) return 'convocatoria'
-  if (t.includes('bases') || t.includes('reglamento')) return 'bases'
-  if (t.includes('resultado') || t.includes('aprobado') || t.includes('lista')) return 'resultado'
-  if (t.includes('temario') || t.includes('programa')) return 'temario'
-  if (t.includes('rectificacion') || t.includes('rectificación') || t.includes('corrección') || t.includes('correccion')) return 'rectificacion'
+  // Stems para capturar singular/plural/género
+  if (t.includes('convocatori') || t.includes('convocan') || t.includes('se convoca')) return 'convocatoria'
+  if (t.includes('oferta de empleo')) return 'convocatoria'
+  if (t.includes('bases reguladora') || t.includes('bases de la convocatori')) return 'bases'
+  if (t.includes('aprobado') || t.includes('lista definitiva') || t.includes('lista provisional') || t.includes('resultado') || t.includes('nota de corte')) return 'resultado'
+  if (t.includes('temario') || t.includes('programa de materias')) return 'temario'
+  if (t.includes('rectificaci') || t.includes('correci') || t.includes('correccion') || t.includes('corrección')) return 'rectificacion'
   return 'otro'
 }
 

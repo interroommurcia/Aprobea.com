@@ -11,6 +11,7 @@ export default function BackofficeBoe() {
   const [loading, setLoading]     = useState(true)
   const [scraping, setScraping]   = useState(false)
   const [vaciando, setVaciando]   = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string>('')
   const [filtroTipo, setFiltro]   = useState('todos')
   const [filtroFecha, setFiltroFecha] = useState('')          // filtro visual de la tabla
   const [fechaScraping, setFechaScraping] = useState(hoyISO) // fecha para el scraping manual
@@ -30,6 +31,15 @@ export default function BackofficeBoe() {
     const data = await res.json()
     alert(`Scraping completado (${fechaScraping}): ${data.insertadas ?? 0} nuevas publicaciones insertadas`)
     setScraping(false); load()
+  }
+
+  async function ejecutarDebug() {
+    setDebugInfo('Consultando BOE…')
+    const body: Record<string, any> = { debug: true }
+    if (fechaScraping) body.fecha = fechaScraping
+    const res = await fetch('/api/backoffice/boe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json()
+    setDebugInfo(JSON.stringify(data.debug ?? data, null, 2))
   }
 
   async function vaciarYRescraping() {
@@ -77,12 +87,27 @@ export default function BackofficeBoe() {
             style={{ background: scraping ? 'rgba(77,159,212,0.1)' : '#4d9fd4', color: scraping ? '#4d9fd4' : '#fff', border: `0.5px solid ${scraping ? 'rgba(77,159,212,0.4)' : '#4d9fd4'}`, borderRadius: 'var(--radius)', padding: '9px 20px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: (scraping || vaciando) ? 0.7 : 1, whiteSpace: 'nowrap' }}>
             {scraping ? '⏳ Scrapeando…' : '📡 Ejecutar scraping'}
           </button>
+          <button onClick={ejecutarDebug} disabled={scraping || vaciando}
+            style={{ background: 'rgba(201,160,67,0.08)', color: 'var(--gold-200)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius)', padding: '9px 14px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: (scraping || vaciando) ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+            🔍 Debug
+          </button>
           <button onClick={vaciarYRescraping} disabled={scraping || vaciando}
             style={{ background: 'rgba(224,0,85,0.08)', color: '#e05', border: '0.5px solid rgba(224,0,85,0.25)', borderRadius: 'var(--radius)', padding: '9px 16px', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: (scraping || vaciando) ? 0.6 : 1, whiteSpace: 'nowrap' }}>
             {vaciando ? '🗑 Vaciando…' : '🗑 Vaciar BD y rescraping'}
           </button>
         </div>
       </div>
+
+      {/* Debug panel */}
+      {debugInfo && (
+        <div style={{ background: 'rgba(0,0,0,0.4)', border: '0.5px solid var(--gold-border)', borderRadius: 'var(--radius-lg)', padding: '1rem 1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '11px', color: 'var(--gold-300)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Debug BOE API</span>
+            <button onClick={() => setDebugInfo('')} style={{ fontSize: '11px', color: 'var(--text-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}>✕</button>
+          </div>
+          <pre style={{ fontSize: '11px', color: 'var(--text-2)', overflow: 'auto', maxHeight: '300px', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{debugInfo}</pre>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
