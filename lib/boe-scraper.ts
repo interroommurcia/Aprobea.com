@@ -113,9 +113,13 @@ function parseItemXml(content: string, fecha: string): Record<string, any> | nul
   const organismo = content.match(/<departamento>([\s\S]*?)<\/departamento>/)?.[1]?.trim() ?? null
   if (!titulo || !id) return null
 
+  // boe_fuente: 'BOE-A', 'BOE-B', 'BOE-C' extraído del id
+  const boe_fuente = id.match(/^(BOE-[A-Z])/)?.[1] ?? 'BOE-A'
+
   return {
     boe_id: id, titulo, url_pdf: urlPdf ?? null,
     tipo: detectTipo(titulo), fecha_publicacion: fecha, procesado: false,
+    boe_fuente,
     comunidad: 'estatal',
     organismo,
     departamento: organismo,
