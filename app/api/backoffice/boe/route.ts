@@ -24,16 +24,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   if (!isAdmin(req)) return Response.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { fecha } = await req.json().catch(() => ({}))
+  const body = await req.json().catch(() => ({}))
+  const { fecha, debug } = body
   try {
-    const result = await scrapeBoE(fecha)
-    return Response.json({ ok: true, insertadas: result })
+    const result = await scrapeBoE(fecha, !!debug)
+    return Response.json({ ok: true, insertadas: typeof result === 'number' ? result : 0, ...(debug ? { debug: result } : {}) })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 })
   }
 }
 
-async function scrapeBoE(fechaOverride?: string) {
+async function scrapeBoE(fechaOverride?: string, debug = false): Promise<number | object> {
   const hoy = fechaOverride ?? new Date().toISOString().slice(0, 10)
   const fechaStr = hoy.replace(/-/g, '')
 
@@ -41,15 +42,13 @@ async function scrapeBoE(fechaOverride?: string) {
   const apiUrl = `https://www.boe.es/datosabiertos/api/boe/sumario/${fechaStr}`
   const res = await fetch(apiUrl, {
     headers: { Accept: 'application/xml', 'User-Agent': 'Aprobea/1.0' },
-    next: { revalidate: 0 },
+    cache: 'no-store',
   })
-  if (!res.ok) return 0
+  if (!res.ok) return debug ? { step: 'fetch_failed', status: res.status } : 0
 
   const xml = await res.text()
-
-  // Verificar que el status es 200
   const statusCode = xml.match(/<code>(\d+)<\/code>/)?.[1]
-  if (statusCode !== '200') return 0
+  if (statusCode !== '200') return debug ? { step: 'bad_status', statusCode, xml: xml.slice(0, 300) } : 0
 
   // Extraer items: en esta API el ID está en <identificador> y el título en <titulo>
   const items: any[] = []
@@ -68,12 +67,13 @@ async function scrapeBoE(fechaOverride?: string) {
     })
   }
 
-  if (!items.length) return 0
+  if (!items.length) return debug ? { step: 'no_items', xmlSnippet: xml.slice(0, 500) } : 0
+
+  if (debug) return { step: 'parsed', count: items.length, sample: items.slice(0, 2) }
 
   const { error } = await sb.from('boe_publicaciones').upsert(items, { onConflict: 'boe_id', ignoreDuplicates: true })
   if (error) throw new Error(error.message)
 
-  // Notificar alertas de usuarios
   await notificarAlertas(items)
 
   return items.length
