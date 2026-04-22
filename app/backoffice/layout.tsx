@@ -41,13 +41,15 @@ export default function BackofficeLayout({ children }: { children: React.ReactNo
   if (pathname === '/backoffice') return <>{children}</>
 
   const navItems = [
-    { href: '/backoffice/dashboard',    label: 'Dashboard',        icon: '▦' },
-    { href: '/backoffice/usuarios',     label: 'Usuarios',         icon: '👤' },
-    { href: '/backoffice/oposiciones',  label: 'Oposiciones',      icon: '📚' },
-    { href: '/backoffice/preguntas',    label: 'Banco Preguntas',  icon: '❓' },
-    { href: '/backoffice/documentos',   label: 'Documentos',       icon: '📄', sub: true },
-    { href: '/backoffice/examenes',     label: 'Exámenes',         icon: '📝' },
-    { href: '/backoffice/boe',          label: 'BOE Radar',        icon: '📡' },
+    { href: '/backoffice/dashboard',          label: 'Dashboard',           icon: '▦' },
+    { href: '/backoffice/usuarios',           label: 'Usuarios',            icon: '👤' },
+    { href: '/backoffice/oposiciones',        label: 'Oposiciones',         icon: '📚' },
+    { href: '/backoffice/temarios',           label: 'Temarios',            icon: '📋' },
+    { href: '/backoffice/preguntas',          label: 'Banco Preguntas',     icon: '❓' },
+    { href: '/backoffice/documentos',         label: 'Documentos',          icon: '📄', sub: true },
+    { href: '/backoffice/examenes',           label: 'Exámenes usuarios',   icon: '📝' },
+    { href: '/backoffice/examenes-oficiales', label: 'Exámenes oficiales',  icon: '🏛' },
+    { href: '/backoffice/boe',                label: 'BOE Radar',           icon: '📡' },
     { href: '/backoffice/analytics',    label: 'Analytics',        icon: '📈' },
     { href: '/backoffice/ia',           label: 'IA Asistente',     icon: '🤖' },
     { href: '/backoffice/ia-uso',       label: 'Consumo IA',       icon: '💡', sub: true },
