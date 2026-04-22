@@ -62,7 +62,7 @@ async function scrapeBoE(fechaOverride?: string, debug = false): Promise<number 
     if (!titulo || !id) continue
 
     items.push({
-      boe_id: id, titulo, url_pdf: urlPdf ?? null,
+      boe_id: id, titulo, url_pdf: urlPdf ?? null, boletin: 'BOE',
       tipo: detectTipo(titulo), fecha_publicacion: hoy, procesado: false,
     })
   }
