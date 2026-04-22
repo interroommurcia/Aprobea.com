@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-type Pub = { id: string; titulo: string; tipo: string; boe_fuente: string; fecha_publicacion: string; url_pdf: string; resumen_ia: string; relevancia: number; procesado: boolean }
+type Pub = { id: string; titulo: string; tipo: string; fecha_publicacion: string; url_pdf: string; resumen_ia: string; procesado: boolean }
 
 export default function BoeRadarPage() {
   const [uid, setUid]         = useState<string | null>(null)
   const [pubs, setPubs]       = useState<Pub[]>([])
   const [loading, setLoading] = useState(true)
   const [filtroTipo, setFiltroTipo] = useState<string>('todos')
-  const [filtroFuente, setFiltroFuente] = useState<string>('todas')
   const [alertas, setAlertas] = useState<any[]>([])
   const [oposiciones, setOpos] = useState<any[]>([])
 
@@ -19,7 +18,7 @@ export default function BoeRadarPage() {
       if (!data.user) return
       const uid = data.user.id; setUid(uid)
       const [{ data: pubs }, { data: alts }, { data: ops }] = await Promise.all([
-        supabase.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false }).limit(60),
+        supabase.from('boe_publicaciones').select('*').order('fecha_publicacion', { ascending: false }).limit(200),
         supabase.from('alertas_boe').select('*,oposiciones(nombre_corto)').eq('user_id', uid),
         supabase.from('suscripciones_oposicion').select('oposiciones(id,nombre,nombre_corto)').eq('user_id', uid).eq('activa', true),
       ])
@@ -47,11 +46,15 @@ export default function BoeRadarPage() {
     temario: '#e07a4d', rectificacion: '#e05', otro: 'var(--text-3)',
   }
 
-  const filtradas = pubs.filter(p => {
-    if (filtroTipo !== 'todos' && p.tipo !== filtroTipo) return false
-    if (filtroFuente !== 'todas' && p.boe_fuente !== filtroFuente) return false
-    return true
-  })
+  const tipoOrden: Record<string, number> = { convocatoria: 0, bases: 1, resultado: 2, rectificacion: 3, temario: 4, otro: 5 }
+
+  const filtradas = pubs
+    .filter(p => filtroTipo === 'todos' || p.tipo === filtroTipo)
+    .sort((a, b) => {
+      const diff = (tipoOrden[a.tipo] ?? 5) - (tipoOrden[b.tipo] ?? 5)
+      if (diff !== 0) return diff
+      return new Date(b.fecha_publicacion).getTime() - new Date(a.fecha_publicacion).getTime()
+    })
 
   return (
     <div style={{ padding: '2rem 2.5rem', maxWidth: '1100px' }}>
@@ -62,7 +65,7 @@ export default function BoeRadarPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(77,184,122,0.08)', border: '0.5px solid rgba(77,184,122,0.2)', borderRadius: '10px', padding: '8px 14px' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4db87a', animation: 'pulse 2s infinite', display: 'inline-block' }} />
-          <span style={{ fontSize: '12px', color: '#4db87a' }}>Activo · Actualización diaria 06:00</span>
+          <span style={{ fontSize: '12px', color: '#4db87a' }}>Activo · Actualización 08:00 y 17:30</span>
         </div>
       </div>
 
@@ -71,17 +74,10 @@ export default function BoeRadarPage() {
         {/* Feed principal */}
         <div>
           {/* Filtros */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            {['todos', 'convocatoria', 'bases', 'resultado', 'temario', 'rectificacion'].map(t => (
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+            {['todos', 'convocatoria', 'bases', 'resultado', 'temario', 'rectificacion', 'otro'].map(t => (
               <button key={t} onClick={() => setFiltroTipo(t)} style={{ padding: '5px 12px', background: filtroTipo === t ? 'rgba(201,160,67,0.1)' : 'transparent', border: `0.5px solid ${filtroTipo === t ? 'var(--gold-200)' : 'rgba(255,255,255,0.08)'}`, color: filtroTipo === t ? 'var(--gold-100)' : 'var(--text-3)', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', textTransform: 'capitalize' }}>
                 {t === 'todos' ? 'Todas' : t}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-            {['todas', 'estatal', 'madrid', 'cataluna', 'andalucia', 'valencia', 'euskadi'].map(f => (
-              <button key={f} onClick={() => setFiltroFuente(f)} style={{ padding: '4px 10px', background: filtroFuente === f ? 'rgba(77,159,212,0.1)' : 'transparent', border: `0.5px solid ${filtroFuente === f ? 'rgba(77,159,212,0.5)' : 'rgba(255,255,255,0.06)'}`, color: filtroFuente === f ? '#4d9fd4' : 'var(--text-3)', borderRadius: '6px', cursor: 'pointer', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {f === 'todas' ? 'BOE Todas' : f === 'estatal' ? 'BOE Estatal' : f.toUpperCase()}
               </button>
             ))}
           </div>
@@ -97,7 +93,7 @@ export default function BoeRadarPage() {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '6px' }}>
                         <span style={{ fontSize: '9px', padding: '2px 7px', borderRadius: '5px', background: `${tipoColor[pub.tipo]}20`, color: tipoColor[pub.tipo] ?? 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{pub.tipo}</span>
-                        <span style={{ fontSize: '9px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{pub.boe_fuente}</span>
+                        <span style={{ fontSize: '9px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>BOE</span>
                         {pub.fecha_publicacion && <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>{new Date(pub.fecha_publicacion).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
                       </div>
                       <h3 style={{ fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-0)', lineHeight: 1.5, marginBottom: '8px' }}>{pub.titulo}</h3>
